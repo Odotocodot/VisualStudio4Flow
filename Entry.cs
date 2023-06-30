@@ -8,7 +8,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     //For Json deserialization.
 
-    public class Entry
+    public record Entry
     {
         public string Key { get; init; }
         public Value Value { get; init; }
@@ -18,7 +18,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public int ItemType => Value.LocalProperties.Type;
     }
 
-    public class Value
+    public record Value
     {
         public LocalProperties LocalProperties { get; init; }
         public object Remote { get; init; }
@@ -30,7 +30,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public bool IsSourceControlled { get; init; }
     }
 
-    public class LocalProperties
+    public record LocalProperties
     {
         public string FullPath { get; init; }
         //0 is a solution/project.
