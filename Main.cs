@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,27 +15,41 @@ using System.Xml.Linq;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
-    public class VisualStudio : IAsyncPlugin, IContextMenu//, ISettingProvider
-	{
-        public static readonly TypeKeyword FilesOnly = new(1, "f:");
-        public static readonly TypeKeyword ProjectsOnly = new(0, "p:");
+    public class VisualStudioPlugin : IAsyncPlugin, IContextMenu//, IResultUpdated//, ISettingProvider
+    {
         private PluginInitContext context;
         private List<VisualStudioInstance> vsInstances;
 
+        public static readonly TypeKeyword FilesOnly = new(1, "f:");
+        public static readonly TypeKeyword ProjectsOnly = new(0, "p:");
+
+        private static bool IsVSInstalled;
 
         public async Task InitAsync(PluginInitContext context)
         {
             this.context = context;
-            vsInstances = await GetVisualStudioInstances();
+            Icons.Init(context);
+            var source = new CancellationTokenSource();
+            vsInstances = await GetVisualStudioInstances(source);
         }
 
         public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
         {
-            var vs = vsInstances[0];
+            if(!IsVSInstalled)
+            {
+                return SingleResult("No installed version of Visual Studio was found");
+            }
+
+            VisualStudioInstance vs = vsInstances[0];
             //TODO: Cache the list of recent entries
 
-            var allRecentItems = GetRecentItems(vs, token);
+            IAsyncEnumerable<Entry> allRecentItems = GetRecentItems(vs, token);
             IAsyncEnumerable<Entry> selectedItems = null;
+
+            if(!await allRecentItems.AnyAsync(token))
+            {
+                return SingleResult("No recent items found");
+            }
 
             if (string.IsNullOrWhiteSpace(query.Search))
             {
@@ -56,12 +71,47 @@ namespace Flow.Launcher.Plugin.VisualStudio
             return await selectedItems.Select(CreateEntryResult).ToListAsync(cancellationToken: token);
         }
 
+        private static List<Result> SingleResult(string title)
+        {
+            return new List<Result>
+                {
+                    new Result
+                    {
+                        Title = title,
+                        IcoPath = Icons.DefaultIcon,
+                    }
+                };
+        }
+
         public List<Result> LoadContextMenus(Result selectedResult)
         {
+            if(selectedResult.ContextData is Entry e)
+            {
+                return vsInstances.Select(instance => new Result
+                {
+                    Title = "Open in \"" + instance.DisplayName + "\"",
+                    SubTitle = instance.Description,
+                    IcoPath = instance.IconPath,
+                    Action = c =>
+                    {
+                        context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
+                        return true;
+                    }
+                }).Append(new Result
+                {
+                    Title = $"Remove \"{selectedResult.Title}\" from recents list.",
+                    SubTitle = selectedResult.SubTitle,
+                    IcoPath = Icons.Remove,
+                    Action = c =>
+                    {
+                        //TODO;
+                        return true;
+                    }
+                }).ToList();
+            }
             return null;
         }
 
-        //TODO: add check if there is no recent items!
         private static async IAsyncEnumerable<Entry> GetRecentItems(VisualStudioInstance vs, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
@@ -84,33 +134,53 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(await reader.GetValueAsync()));
-            await foreach (var entry in JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken))
+
+            IAsyncEnumerable<Entry> entries = AsyncEnumerable.Empty<Entry>();
+            try
+            {
+                entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
+            }
+            catch (Exception) //no recent items; 
+            {
+                yield break;
+            }
+            await foreach (var entry in entries)
             {
                 yield return entry;
             }
             //await memoryStream.DisposeAsync();
         }
 
-        private static async Task<List<VisualStudioInstance>> GetVisualStudioInstances(CancellationToken cancellationToken = default)
+        private static async Task<List<VisualStudioInstance>> GetVisualStudioInstances(CancellationTokenSource ctSource)
         {
-            var psi = new ProcessStartInfo
+            var vswhereProcess = Process.Start(new ProcessStartInfo
             {
-                FileName = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe",
+                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe"),
                 Arguments = "-sort -format json",
                 RedirectStandardOutput = true,
-            };
+            });
+            
+            using var doc = await JsonDocument.ParseAsync(vswhereProcess.StandardOutput.BaseStream, cancellationToken: ctSource.Token);
 
-            var process = Process.Start(psi);
-            using var doc = await JsonDocument.ParseAsync(process.StandardOutput.BaseStream, cancellationToken: cancellationToken);
-            ///TODO make this really async, do Task.Whenall
-            if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() < 1)
+
+            int count;
+            if (doc.RootElement.ValueKind != JsonValueKind.Array || (count = doc.RootElement.GetArrayLength()) < 1)
             {
-                throw new InvalidOperationException("No installed version of Visual Studio was found");
+                ctSource.Cancel();
+                IsVSInstalled = false;
+                //throw new InvalidOperationException("No installed version of Visual Studio was found");
             }
-            // get iconpath as well
-            return doc.RootElement.EnumerateArray()
-                                  .Select(i => new VisualStudioInstance(i))
-                                  .ToList();
+            IsVSInstalled = true;
+
+            var bag = new ConcurrentBag<VisualStudioInstance>();
+
+            await Parallel.ForEachAsync(doc.RootElement.EnumerateArray(), new ParallelOptions { MaxDegreeOfParallelism = 10 , CancellationToken = ctSource.Token },async (element, ct) =>
+            {
+                var vs = new VisualStudioInstance(element);
+                await vs.SetIconPath(ct);
+                bag.Add(vs);
+            });
+            return bag.ToList();
         }
 
         private static async Task UpdateRecentItems(VisualStudioInstance vs, Entry[] newEntries, CancellationToken cancellationToken = default)
@@ -143,13 +213,15 @@ namespace Flow.Launcher.Plugin.VisualStudio
         {
             return new Result
             {
-                Title = Path.GetFileNameWithoutExtension(e.Properties.LocalProperties.FullPath),
-                SubTitle = e.Properties.IsFavorite ? $"★  {e.Properties.LocalProperties.FullPath}" : e.Properties.LocalProperties.FullPath,
-                SubTitleToolTip = $"{e.Properties.LocalProperties.FullPath}\n\nLast Accessed:\t{e.Properties.LastAccessed:F}",
-                IcoPath = Images.Icon,
+                Title = Path.GetFileNameWithoutExtension(e.Path),
+                SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
+                SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
+                ContextData = e,
+                IcoPath = Icons.DefaultIcon,
                 Action = c =>
                 {
-                    context.API.ShellRun(e.Properties.LocalProperties.FullPath);
+
+                    context.API.ShellRun($"\"{e.Path}\"");
                     return true;
                 }
             };
@@ -157,7 +229,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private bool FuzzySearch(Entry entry, string search)
         {
-            var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Properties.LocalProperties.FullPath));
+            var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
             //TODO: Highlight data
             return matchResult.IsSearchPrecisionScoreMet();
         }
@@ -167,9 +239,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
             var search = query.Search[typeKeyword.Keyword.Length..];
 
             if (string.IsNullOrWhiteSpace(search))
-                return entry.Properties.LocalProperties.Type == typeKeyword.Type;
+                return entry.ItemType == typeKeyword.Type;
             else
-                return entry.Properties.LocalProperties.Type == typeKeyword.Type && FuzzySearch(entry, search);
+                return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
         }
 
         public Control CreateSettingPanel()
@@ -177,12 +249,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
             throw new NotImplementedException();
         }
 
-        public static class Images
-		{
-			public const string Icon = "Images\\icon.png";
-		}
         public record struct TypeKeyword(int Type, string Keyword);
-	}
-
-
+    }
 }

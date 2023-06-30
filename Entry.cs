@@ -11,11 +11,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
     public class Entry
     {
         public string Key { get; init; }
-        [JsonPropertyName("Value")]
-        public Properties Properties { get; init; }
+        public Value Value { get; init; }
+
+        //NonJson
+        public string Path => Value.LocalProperties.FullPath;
+        public int ItemType => Value.LocalProperties.Type;
     }
 
-    public class Properties
+    public class Value
     {
         public LocalProperties LocalProperties { get; init; }
         public object Remote { get; init; }
