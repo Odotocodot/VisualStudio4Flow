@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,16 +18,21 @@ namespace Flow.Launcher.Plugin.VisualStudio
     {
         private PluginInitContext context;
         private List<VisualStudioInstance> vsInstances;
+        private VisualStudioInstance vs;
+        private bool IsVSInstalled;
 
-        public static readonly TypeKeyword FilesOnly = new(1, "f:");
-        public static readonly TypeKeyword ProjectsOnly = new(0, "p:");
 
-        private static bool IsVSInstalled;
+        private static readonly TypeKeyword FilesOnly = new(1, "f:");
+        private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
+
         public async Task InitAsync(PluginInitContext context)
         {
             this.context = context;
             Icons.Init(context);
             vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
+            IsVSInstalled = vsInstances.Any();
+            if (IsVSInstalled)
+                vs = vsInstances[0];
         }
 
         public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
@@ -43,7 +47,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return SingleResult("No installed version of Visual Studio was found");
             }
 
-            VisualStudioInstance vs = vsInstances[0];
             //TODO: Cache the list of recent entries
             //only needs to be updated on making the mainwindowvisble.
 
@@ -72,7 +75,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 selectedItems = allRecentItems.Where(e => FuzzySearch(e, query.Search));
             }
 
-            return await selectedItems.Select(CreateEntryResult).ToListAsync(cancellationToken: token);
+            return await selectedItems.OrderBy(e => e.Value.LastAccessed).Select(CreateEntryResult).ToListAsync(cancellationToken: token);
         }
         public List<Result> LoadContextMenus(Result selectedResult)
         {
@@ -96,8 +99,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     AsyncAction = async c =>
                     {
                         //TODO: Get cached results
-                        var vs = vsInstances[0];
-                        await UpdateRecentItems(vs, await GetRecentItems(vs).Where(e => e != currentEntry).ToArrayAsync());
+                        await UpdateRecentItems(vs, await GetRecentItems(vs).Where(e => e.Key != currentEntry.Key).ToArrayAsync());
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, true);
                         return false;
                     }
@@ -108,7 +110,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private static async IAsyncEnumerable<Entry> GetRecentItems(VisualStudioInstance vs, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
+            using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.Read);
             using var reader = XmlReader.Create(fileStream, new XmlReaderSettings() { Async = true });
             await reader.MoveToContentAsync();
 
@@ -130,22 +132,25 @@ namespace Flow.Launcher.Plugin.VisualStudio
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(await reader.GetValueAsync()));
 
             IAsyncEnumerable<Entry> entries = AsyncEnumerable.Empty<Entry>();
-            try
-            {
-                entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
-            }
-            catch (Exception) //no recent items;
-            {
-                await memoryStream.DisposeAsync();
-                await fileStream.DisposeAsync();
-                reader.Dispose();
-                yield break;
-            }
+            //TODO: no recent items
+            entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
+            //try
+            //{
+            //}
+            //catch (Exception) //no recent items;
+            //{
+            //    //await memoryStream.DisposeAsync();
+            //    //await fileStream.DisposeAsync();
+            //    //reader.Dispose();
+            //    yield break;
+            //}
             await foreach (var entry in entries)
             {
                 yield return entry;
             }
             //await memoryStream.DisposeAsync();
+            //await fileStream.DisposeAsync();
+            //reader.Dispose();
         }
 
         private static async Task<List<VisualStudioInstance>> GetVisualStudioInstances(CancellationTokenSource ctSource)
@@ -163,23 +168,23 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (doc.RootElement.ValueKind != JsonValueKind.Array || (count = doc.RootElement.GetArrayLength()) < 1)
             {
                 ctSource.Cancel();
-                IsVSInstalled = false;
+                return new List<VisualStudioInstance>();
                 //throw new InvalidOperationException("No installed version of Visual Studio was found");
             }
-            IsVSInstalled = true;
 
-            var bag = new ConcurrentBag<VisualStudioInstance>();
-
-            await Parallel.ForEachAsync(doc.RootElement.EnumerateArray(), new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = ctSource.Token }, async (element, ct) =>
+            var instances = doc.RootElement.EnumerateArray()
+                                           .Select(element => new VisualStudioInstance(element))
+                                           .ToList();
+            
+            //set icons
+            await Parallel.ForEachAsync(instances, new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = ctSource.Token }, async (instance, ct) =>
             {
                 if (ct.IsCancellationRequested)
                     return;
-
-                var vs = new VisualStudioInstance(element);
-                await vs.SetIconPath(ct);
-                bag.Add(vs);
+                await instance.SetIconPath(ct);
             });
-            return bag.ToList();
+
+            return instances;
         }
 
         private static async Task UpdateRecentItems(VisualStudioInstance vs, Entry[] newEntries, CancellationToken cancellationToken = default)
@@ -188,24 +193,29 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             var json = JsonSerializer.SerializeAsync(memoryStream, newEntries, cancellationToken: cancellationToken);
             ///Open xml document
-            using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
-            var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, cancellationToken);
-            var recent = root.Element("content")
-                             .Element("indexed")
-                             .Elements("collection")
-                             .Where(e => (string)e.Attribute("name") == "CodeContainers.Offline")
-                             .First()
-                             .Element("value");
-            ///Make sure Json is converted
-            await json;
+            using (var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite))
+            {
+                var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, cancellationToken);
+                var recent = root.Element("content")
+                                 .Element("indexed")
+                                 .Elements("collection")
+                                 .Where(e => (string)e.Attribute("name") == "CodeContainers.Offline")
+                                 .First()
+                                 .Element("value");
+                ///Make sure Json is serialized
+                await json;
 
-            using var streamReader = new StreamReader(memoryStream, Encoding.UTF8);
-            streamReader.BaseStream.Position = 0;
-            recent.Value = await streamReader.ReadToEndAsync(cancellationToken);
+                //write new entries to xml value
+                memoryStream.Position = 0;
+                using var streamReader = new StreamReader(memoryStream, Encoding.UTF8);
+                recent.Value = await streamReader.ReadToEndAsync(cancellationToken);
 
-            fileStream.SetLength(0);
-            using var streamWriter = new StreamWriter(fileStream, Encoding.UTF8);
-            await root.SaveAsync(streamWriter, SaveOptions.DisableFormatting, cancellationToken);
+                //save file
+                fileStream.SetLength(0);
+                using var streamWriter = new StreamWriter(fileStream, Encoding.UTF8);
+                await root.SaveAsync(streamWriter, SaveOptions.DisableFormatting, cancellationToken);
+            }
+
         }
 
         private static List<Result> SingleResult(string title)
