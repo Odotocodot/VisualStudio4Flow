@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -10,6 +11,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class VisualStudioInstance
     {
+
         public string InstanceId { get; init; }
         public Version InstallationVersion { get; init; }
         public string ExePath { get; init; }
@@ -18,6 +20,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string Description { get; init; }
         public string IconPath { get; private set; }
         public string RecentItemsPath { get; init; }
+
+        private readonly Lazy<Dictionary<string, Entry>> recentItems = new(() => new Dictionary<string, Entry>());
+        public IEnumerable<Entry> Entries => recentItems.Value.Values;
+
         public VisualStudioInstance(JsonElement element)
         {
             InstanceId = element.GetProperty("instanceId").GetString();
@@ -57,6 +63,22 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     IconPath = Icons.DefaultIcon;
                 }
+            }
+        }
+
+        public void AddRecentItem(Entry entry)
+        {
+            recentItems.Value.Add(entry.Key, entry);
+        }
+        public bool RemoveRecentItem(Entry entry)
+        {
+            return recentItems.Value.Remove(entry.Key);
+        }
+        public void ClearRecents()
+        {
+            if(recentItems.IsValueCreated)
+            {
+                recentItems.Value.Clear();
             }
         }
     }

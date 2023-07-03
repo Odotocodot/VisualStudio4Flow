@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -18,12 +19,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
     {
         private PluginInitContext context;
         private List<VisualStudioInstance> vsInstances;
-        private VisualStudioInstance vs;
         private bool IsVSInstalled;
 
-
-        private static readonly TypeKeyword FilesOnly = new(1, "f:");
         private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
+        private static readonly TypeKeyword FilesOnly = new(1, "f:");
+
+        private ConcurrentDictionary<string, Entry> allRecentItems;
+
+        private IEnumerable<Entry> AllEntries => allRecentItems./*Values;//*/Select(kvp =>  kvp.Value);
 
         public async Task InitAsync(PluginInitContext context)
         {
@@ -31,8 +34,21 @@ namespace Flow.Launcher.Plugin.VisualStudio
             Icons.Init(context);
             vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
             IsVSInstalled = vsInstances.Any();
-            if (IsVSInstalled)
-                vs = vsInstances[0];
+            allRecentItems = new ConcurrentDictionary<string, Entry>();
+        }
+
+        public async Task GetAllRecentItems(CancellationToken token = default)
+        {
+            allRecentItems.Clear();
+            await Parallel.ForEachAsync(vsInstances, async (instance, ct) =>
+            {
+                instance.ClearRecents();
+                await foreach (var entry in GetRecentItems(instance, token))
+                {
+                    instance.AddRecentItem(entry);
+                    allRecentItems.TryAdd(entry.Key, entry);
+                }
+            });
         }
 
         public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
@@ -49,33 +65,21 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             //TODO: Cache the list of recent entries
             //only needs to be updated on making the mainwindowvisble.
-
-            IAsyncEnumerable<Entry> allRecentItems = GetRecentItems(vs, token);
-            IAsyncEnumerable<Entry> selectedItems = null;
-
-            if (!await allRecentItems.AnyAsync(token))
+            await GetAllRecentItems(token);
+            if (!allRecentItems.Any())
             {
                 return SingleResult("No recent items found");
             }
 
-            if (string.IsNullOrWhiteSpace(query.Search))
+            var selectedRecentItems = query.Search switch
             {
-                selectedItems = allRecentItems;
-            }
-            else if (query.Search.StartsWith(ProjectsOnly.Keyword))
-            {
-                selectedItems = allRecentItems.Where(e => TypeSearch(e, query, ProjectsOnly));
-            }
-            else if (query.Search.StartsWith(FilesOnly.Keyword))
-            {
-                selectedItems = allRecentItems.Where(e => TypeSearch(e, query, FilesOnly));
-            }
-            else
-            {
-                selectedItems = allRecentItems.Where(e => FuzzySearch(e, query.Search));
-            }
+                string search when string.IsNullOrEmpty(search) => AllEntries,
+                string search when search.StartsWith(ProjectsOnly.Keyword) => AllEntries.Where(e => TypeSearch(e, query, ProjectsOnly)),
+                string search when search.StartsWith(FilesOnly.Keyword) => AllEntries.Where(e => TypeSearch(e, query, FilesOnly)),
+                _ => AllEntries.Where(e => FuzzySearch(e, query.Search))
+            };
 
-            return await selectedItems.OrderBy(e => e.Value.LastAccessed).Select(CreateEntryResult).ToListAsync(cancellationToken: token);
+            return selectedRecentItems.OrderBy(e => e.Value.LastAccessed).Select(CreateEntryResult).ToList();
         }
         public List<Result> LoadContextMenus(Result selectedResult)
         {
@@ -93,13 +97,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     }
                 }).Append(new Result
                 {
-                    Title = $"Remove \"{selectedResult.Title}\" from recents list.",
+                    Title = $"Remove \"{selectedResult.Title}\" from all visual studio recent items lists.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = Icons.Remove,
                     AsyncAction = async c =>
                     {
                         //TODO: Get cached results
-                        await UpdateRecentItems(vs, await GetRecentItems(vs).Where(e => e.Key != currentEntry.Key).ToArrayAsync());
+                        await Parallel.ForEachAsync(vsInstances, async (instance, ct) =>
+                        {
+                            allRecentItems.TryRemove(currentEntry.Key, out _);
+                            if(instance.RemoveRecentItem(currentEntry))
+                            {
+                                await UpdateRecentItems(instance, ct);
+                            }
+                        });
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, true);
                         return false;
                     }
@@ -187,11 +198,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
             return instances;
         }
 
-        private static async Task UpdateRecentItems(VisualStudioInstance vs, Entry[] newEntries, CancellationToken cancellationToken = default)
+        private static async Task UpdateRecentItems(VisualStudioInstance vs, CancellationToken cancellationToken = default)
         {
+            if (!vs.Entries.Any())
+                return;
+
             using var memoryStream = new MemoryStream();
 
-            var json = JsonSerializer.SerializeAsync(memoryStream, newEntries, cancellationToken: cancellationToken);
+            var json = JsonSerializer.SerializeAsync(memoryStream, vs.Entries.ToArray(), cancellationToken: cancellationToken);
             ///Open xml document
             using (var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite))
             {
