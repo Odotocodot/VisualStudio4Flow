@@ -9,14 +9,15 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
     {
         private readonly Settings settings;
         private readonly VisualStudioPlugin plugin;
+        private readonly IconProvider iconProvider;
         private VisualStudioModel selectedVSInstance;
 
-        public SettingsViewModel(Settings settings, VisualStudioPlugin plugin)
+        public SettingsViewModel(Settings settings, VisualStudioPlugin plugin, IconProvider iconProvider)
         {
             this.settings = settings;
             this.plugin = plugin;
+            this.iconProvider = iconProvider;
             SetupVSInstances(settings, plugin);
-
         }
         public List<VisualStudioModel> VSInstances { get; set; }
         public VisualStudioModel SelectedVSInstance
@@ -39,7 +40,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }));
             VSInstances.Insert(0, new VisualStudioModel
             {
-                IconPath = Icons.Windows,
+                IconPath = iconProvider.Windows,
                 Name = "Let Windows Decide (Default)",
                 InstanceId = null,
             });

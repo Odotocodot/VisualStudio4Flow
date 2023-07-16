@@ -26,6 +26,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private static readonly TypeKeyword FilesOnly = new(1, "f:");
 
         private Settings settings;
+        private IconProvider iconProvider;
         //TODO: change icon of all results based on settings of DefaultVSId;
         private ConcurrentDictionary<string, Entry> recentEntries;
         private IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
@@ -39,7 +40,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             settings = context.API.LoadSettingJsonStorage<Settings>();
             context.API.VisibilityChanged += OnVisibilityChanged;
 
-            Icons.Init(context);
+            iconProvider = new IconProvider(context);
             await ReloadDataAsync();
             recentEntries = new ConcurrentDictionary<string, Entry>();
         }
@@ -57,7 +58,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public async Task ReloadDataAsync()
         {
-            Icons.Reload();
+            iconProvider.ReloadIcons();
             vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
             IsVSInstalled = VSInstances.Any();
         }
@@ -112,7 +113,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     Title = $"Remove \"{selectedResult.Title}\" from all visual studio recent items lists.",
                     SubTitle = selectedResult.SubTitle,
-                    IcoPath = Icons.Remove,
+                    IcoPath = IconProvider.Remove,
                     AsyncAction = async c =>
                     {
                         await RemoveEntries(currentEntry);
@@ -138,7 +139,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             });
         }
 
-        private static async Task<VisualStudioInstance[]> GetVisualStudioInstances(CancellationTokenSource ctSource)
+        private async Task<VisualStudioInstance[]> GetVisualStudioInstances(CancellationTokenSource ctSource)
         {
             var vswhereProcess = Process.Start(new ProcessStartInfo
             {
@@ -159,7 +160,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             var tasks = new List<Task<VisualStudioInstance>>();
             for (int i = 0; i < count; i++)
             {
-                tasks.Add(VisualStudioInstance.Create(doc.RootElement[i], ctSource.Token));
+                tasks.Add(VisualStudioInstance.Create(doc.RootElement[i], iconProvider, ctSource.Token));
             }
 
             return await Task.WhenAll(tasks);
@@ -265,7 +266,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 new Result
                 {
                     Title = title,
-                    IcoPath = Icons.DefaultIcon,
+                    IcoPath = IconProvider.DefaultIcon,
                 }
             };
         }
@@ -278,7 +279,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath = Icons.DefaultIcon,//TODO: Change
+                IcoPath = IconProvider.DefaultIcon,//TODO: Change
                 Action = c =>
                 {
                     if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
@@ -312,7 +313,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
         public Control CreateSettingPanel()
         {
-            return new SettingsView(new SettingsViewModel(settings, this));
+            return new SettingsView(new SettingsViewModel(settings, this, iconProvider));
         }
 
 

@@ -20,10 +20,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string RecentItemsPath { get; init; }
         public string DisplayVersion { get; init; }
 
-        public static async Task<VisualStudioInstance> Create(JsonElement element, CancellationToken token = default)
+        public static async Task<VisualStudioInstance> Create(JsonElement element, IconProvider iconProvider, CancellationToken token = default)
         {
             var vs = new VisualStudioInstance(element);
-            await vs.SetIconPath(token);
+            await vs.SetIconPath(iconProvider, token);
             return vs;
         }
 
@@ -44,10 +44,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                            "ApplicationPrivateSettings.xml");
         }
 
-        private async Task SetIconPath(CancellationToken cancellationToken = default)
+        private async Task SetIconPath(IconProvider iconProvider, CancellationToken cancellationToken = default)
         {
             string iconFileName = InstanceId;
-            if (Icons.TryGetIconPath(iconFileName, out string iconPath))
+            if (iconProvider.TryGetIconPath(iconFileName, out string iconPath))
             {
                 IconPath = iconPath;
             }
@@ -59,7 +59,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     {
                         var icon = Icon.ExtractAssociatedIcon(ExePath);
                         var bitmap = icon.ToBitmap();
-                        var iconPath = Path.Combine(Icons.VSIconsDirectoryPath, $"{iconFileName}.png");
+                        var iconPath = Path.Combine(iconProvider.VSIconsDirectoryPath, $"{iconFileName}.png");
                         using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
                         bitmap.Save(fileStream, ImageFormat.Png);
                         IconPath = iconPath;
@@ -67,7 +67,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
                 catch (Exception)
                 {
-                    IconPath = Icons.DefaultIcon;
+                    IconPath = IconProvider.DefaultIcon;
                 }
             }
         }
