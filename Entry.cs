@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using System.Text.Json;
-
+using System.Collections.Generic;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
     //For Json deserialization.
-
-    public class Entry
+    public class Entry 
     {
         public string Key { get; init; }
         public Value Value { get; init; }
@@ -18,6 +15,19 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string Path => Value.LocalProperties.FullPath;
         [JsonIgnore]
         public int ItemType => Value.LocalProperties.Type;
+        [JsonIgnore]
+        public List<int> HighlightData { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Entry entry &&
+                   Key == entry.Key;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Key);
+        }
     }
 
     public class Value

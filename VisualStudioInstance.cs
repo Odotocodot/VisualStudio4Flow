@@ -11,36 +11,38 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class VisualStudioInstance
     {
-
         public string InstanceId { get; init; }
         public Version InstallationVersion { get; init; }
         public string ExePath { get; init; }
-
         public string DisplayName { get; init; }
         public string Description { get; init; }
         public string IconPath { get; private set; }
         public string RecentItemsPath { get; init; }
+        public string DisplayVersion { get; init; }
 
-        private readonly Lazy<Dictionary<string, Entry>> recentItems = new(() => new Dictionary<string, Entry>());
-        public IEnumerable<Entry> Entries => recentItems.Value.Values;
+        private readonly Lazy<HashSet<Entry>> recentItems = new(() => new HashSet<Entry>());
+        public IEnumerable<Entry> Entries => recentItems.Value;
 
         public VisualStudioInstance(JsonElement element)
         {
-            InstanceId = element.GetProperty("instanceId").GetString();
+            var instanceId = element.GetProperty("instanceId").GetString();
             InstallationVersion = element.GetProperty("installationVersion").Deserialize<Version>();
             ExePath = element.GetProperty("productPath").GetString();
             DisplayName = element.GetProperty("displayName").GetString();
             Description = element.GetProperty("description").GetString();
+            DisplayVersion = element.GetProperty("catalog").GetProperty("productDisplayVersion").GetString();
+
+            InstanceId = $"{InstallationVersion.Major}.0_{instanceId}";
 
             RecentItemsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                                            "Microsoft\\VisualStudio",
-                                           $"{InstallationVersion.Major}.0_{InstanceId}",
+                                           InstanceId,
                                            "ApplicationPrivateSettings.xml");
         }
 
         public async Task SetIconPath(CancellationToken cancellationToken = default)
         {
-            string iconFileName = $"{DisplayName} {InstanceId}";
+            string iconFileName = InstanceId;
             if (Icons.TryGetIconPath(iconFileName, out string iconPath))
             {
                 IconPath = iconPath;
@@ -65,16 +67,15 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
             }
         }
-
         public void AddRecentItem(Entry entry)
         {
-            recentItems.Value.Add(entry.Key, entry);
+            recentItems.Value.Add(entry);
         }
         public bool RemoveRecentItem(Entry entry)
         {
-            return recentItems.Value.Remove(entry.Key);
+            return recentItems.Value.Remove(entry);
         }
-        public void ClearRecents()
+        public void ClearRecentItems()
         {
             if(recentItems.IsValueCreated)
             {

@@ -10,6 +10,8 @@
     <PackageTags>flow-launcher flow-plugin</PackageTags>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	<UseWPF>true</UseWPF>
+	<UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
