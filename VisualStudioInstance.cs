@@ -20,10 +20,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string RecentItemsPath { get; init; }
         public string DisplayVersion { get; init; }
 
-        private readonly Lazy<HashSet<Entry>> recentItems = new(() => new HashSet<Entry>());
-        public IEnumerable<Entry> Entries => recentItems.Value;
+        public static async Task<VisualStudioInstance> Create(JsonElement element, CancellationToken token = default)
+        {
+            var vs = new VisualStudioInstance(element);
+            await vs.SetIconPath(token);
+            return vs;
+        }
 
-        public VisualStudioInstance(JsonElement element)
+        private VisualStudioInstance(JsonElement element)
         {
             var instanceId = element.GetProperty("instanceId").GetString();
             InstallationVersion = element.GetProperty("installationVersion").Deserialize<Version>();
@@ -40,7 +44,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                            "ApplicationPrivateSettings.xml");
         }
 
-        public async Task SetIconPath(CancellationToken cancellationToken = default)
+        private async Task SetIconPath(CancellationToken cancellationToken = default)
         {
             string iconFileName = InstanceId;
             if (Icons.TryGetIconPath(iconFileName, out string iconPath))
@@ -65,21 +69,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     IconPath = Icons.DefaultIcon;
                 }
-            }
-        }
-        public void AddRecentItem(Entry entry)
-        {
-            recentItems.Value.Add(entry);
-        }
-        public bool RemoveRecentItem(Entry entry)
-        {
-            return recentItems.Value.Remove(entry);
-        }
-        public void ClearRecentItems()
-        {
-            if(recentItems.IsValueCreated)
-            {
-                recentItems.Value.Clear();
             }
         }
     }
