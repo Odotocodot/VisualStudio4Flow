@@ -43,7 +43,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
 
 
-        public string TryGetIconPath(VisualStudioInstance vs)
+        public string GetIconPath(VisualStudioInstance vs)
         {
             if (!vsIcons.TryGetValue(vs.InstanceId, out string iconPath))
             {

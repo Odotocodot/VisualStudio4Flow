@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -96,7 +97,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     {
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
                         SubTitle = vs.Description,
-                        IcoPath = iconProvider.TryGetIconPath(vs),
+                        IcoPath = iconProvider.GetIconPath(vs),
                         Action = c =>
                         {
                             context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
@@ -135,6 +136,17 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
         private Result CreateEntryResult(Entry e)
         {
+            string iconPath  = IconProvider.DefaultIcon;
+            Action action = () => context.API.ShellRun($"\"{e.Path}\"");
+            if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
+            {
+                var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
+                if (instance != null)
+                {
+                    iconPath = iconProvider.GetIconPath(instance);
+                    action = () => context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
+                }
+            }
             return new Result
             {
                 Title = Path.GetFileNameWithoutExtension(e.Path),
@@ -142,19 +154,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath = IconProvider.DefaultIcon,
+                IcoPath =  iconPath,
                 Action = c =>
                 {
-                    if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
-                    {
-                        var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
-                        if (instance != null)
-                        {
-                            context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
-                            return true;
-                        }
-                    }
-                    context.API.ShellRun($"\"{e.Path}\"");
+                    action();
                     return true;
                 }
             };

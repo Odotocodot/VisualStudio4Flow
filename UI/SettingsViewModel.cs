@@ -38,7 +38,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             {
                 return new VisualStudioModel
                 {
-                    IconPath = iconProvider.TryGetIconPath(vs),
+                    IconPath = iconProvider.GetIconPath(vs),
                     Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
                     InstanceId = vs.InstanceId,
                 };
