@@ -27,7 +27,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private Settings settings;
         private IconProvider iconProvider;
-        //TODO: change icon of all results based on settings of DefaultVSId;
         private ConcurrentDictionary<string, Entry> recentEntries;
         private IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
         public IList<VisualStudioInstance> VSInstances => vsInstances;
@@ -272,6 +271,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
         private Result CreateEntryResult(Entry e)
         {
+            iconProvider.TryGetIconPath(settings.DefaultVSId, out string iconPath);
             return new Result
             {
                 Title = Path.GetFileNameWithoutExtension(e.Path),
@@ -279,7 +279,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath = IconProvider.DefaultIcon,//TODO: Change
+                IcoPath = iconPath,
                 Action = c =>
                 {
                     if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))

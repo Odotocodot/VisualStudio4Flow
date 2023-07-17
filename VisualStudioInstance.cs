@@ -46,8 +46,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private async Task SetIconPath(IconProvider iconProvider, CancellationToken cancellationToken = default)
         {
-            string iconFileName = InstanceId;
-            if (iconProvider.TryGetIconPath(iconFileName, out string iconPath))
+            if (iconProvider.TryGetIconPath(InstanceId, out string iconPath))
             {
                 IconPath = iconPath;
             }
@@ -59,7 +58,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     {
                         var icon = Icon.ExtractAssociatedIcon(ExePath);
                         var bitmap = icon.ToBitmap();
-                        var iconPath = Path.Combine(iconProvider.VSIconsDirectoryPath, $"{iconFileName}.png");
+                        var iconPath = Path.Combine(iconProvider.VSIconsDirectoryPath, $"{InstanceId}.png");
                         using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
                         bitmap.Save(fileStream, ImageFormat.Png);
                         IconPath = iconPath;

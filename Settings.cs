@@ -1,4 +1,4 @@
-﻿namespace Flow.Launcher.Plugin.VisualStudio.UI
+﻿namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class Settings
     {
