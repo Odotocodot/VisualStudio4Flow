@@ -16,11 +16,12 @@ using System.Xml.Linq;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
-    public class VisualStudioPlugin : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
+    public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
     {
-        private PluginInitContext context;
+        public PluginInitContext context;
         private IList<VisualStudioInstance> vsInstances;
         private bool IsVSInstalled;
+        //private VisualStudioPlugin plugin;
 
         private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
         private static readonly TypeKeyword FilesOnly = new(1, "f:");
@@ -40,8 +41,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.VisibilityChanged += OnVisibilityChanged;
 
             iconProvider = new IconProvider(context);
-            await ReloadDataAsync();
             recentEntries = new ConcurrentDictionary<string, Entry>();
+            //plugin = new VisualStudioPlugin();
+            vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
+            IsVSInstalled = VSInstances.Any();
         }
 
         private void OnVisibilityChanged(object sender, VisibilityChangedEventArgs args)
@@ -52,13 +55,18 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (args.IsVisible)
             {
                 Task.Run(async () => await GetRecentEntries());
+                //if (!startedBackup)
+                //{
+                //    startedBackup = true;
+                //    settings.Backup(context, recentEntries.Values.ToArray());
+                //}
             }
         }
 
         public async Task ReloadDataAsync()
         {
-            iconProvider.ReloadIcons();
             vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
+            iconProvider.ReloadIcons();      
             IsVSInstalled = VSInstances.Any();
         }
 
@@ -98,19 +106,22 @@ namespace Flow.Launcher.Plugin.VisualStudio
         {
             if (selectedResult.ContextData is Entry currentEntry)
             {
-                return VSInstances.Select(instance => new Result
+                return VSInstances.Select(vs =>
                 {
-                    Title = $"Open in \"{instance.DisplayName}\" [{instance.DisplayVersion}]",
-                    SubTitle = instance.Description,
-                    IcoPath = instance.IconPath,
-                    Action = c =>
+                    return new Result
                     {
-                        context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{instance.ExePath}\"");
-                        return true;
-                    }
+                        Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
+                        SubTitle = vs.Description,
+                        IcoPath = GetIcon(vs),
+                        Action = c =>
+                        {
+                            context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
+                            return true;
+                        }
+                    };
                 }).Append(new Result
                 {
-                    Title = $"Remove \"{selectedResult.Title}\" from all visual studio recent items lists.",
+                    Title = $"Remove \"{selectedResult.Title}\" from recent items list.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
                     AsyncAction = async c =>
@@ -122,6 +133,12 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         return false;
                     }
                 }).ToList();
+
+                string GetIcon(VisualStudioInstance vs)
+                {
+                    iconProvider.TryGetIconPath(vs.InstanceId, out string iconPath);
+                    return iconPath;
+                }
             }
             return null;
         }
@@ -159,7 +176,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
             var tasks = new List<Task<VisualStudioInstance>>();
             for (int i = 0; i < count; i++)
             {
-                tasks.Add(VisualStudioInstance.Create(doc.RootElement[i], iconProvider, ctSource.Token));
+                int index = i;
+                tasks.Add(Task.Run(() => VisualStudioInstance.Create(doc.RootElement[index], iconProvider),ctSource.Token));
             }
 
             return await Task.WhenAll(tasks);
@@ -271,7 +289,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
         private Result CreateEntryResult(Entry e)
         {
-            iconProvider.TryGetIconPath(settings.DefaultVSId, out string iconPath);
             return new Result
             {
                 Title = Path.GetFileNameWithoutExtension(e.Path),
@@ -279,7 +296,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath = iconPath,
+                IcoPath = IconProvider.DefaultIcon,
                 Action = c =>
                 {
                     if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))

@@ -8,11 +8,11 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
     public class SettingsViewModel : BaseModel
     {
         private readonly Settings settings;
-        private readonly VisualStudioPlugin plugin;
+        private readonly Main plugin;
         private readonly IconProvider iconProvider;
         private VisualStudioModel selectedVSInstance;
 
-        public SettingsViewModel(Settings settings, VisualStudioPlugin plugin, IconProvider iconProvider)
+        public SettingsViewModel(Settings settings, Main plugin, IconProvider iconProvider)
         {
             this.settings = settings;
             this.plugin = plugin;
@@ -30,13 +30,17 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }
         }
 
-        private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
+        private void SetupVSInstances(Settings settings, Main plugin)
         {
-            VSInstances = new List<VisualStudioModel>(plugin.VSInstances.Select(vs => new VisualStudioModel
+            VSInstances = new List<VisualStudioModel>(plugin.VSInstances.Select(vs => 
             {
-                IconPath = vs.IconPath,
-                Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
-                InstanceId = vs.InstanceId,
+                iconProvider.TryGetIconPath(vs.InstanceId, out string iconPath, false);
+                return new VisualStudioModel
+                {
+                    IconPath = iconPath,
+                    Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
+                    InstanceId = vs.InstanceId,
+                };
             }));
             VSInstances.Insert(0, new VisualStudioModel
             {

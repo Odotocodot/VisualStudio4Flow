@@ -1,28 +1,33 @@
 ﻿using System.Collections.Concurrent;
 using System.IO;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class IconProvider
     {
-        public const string DefaultIcon = "Images\\icon.png";
-        public const string Remove = "Images\\delete.png";
+        public const string DefaultIcon = ImageFolderName + "\\icon.png";
+        public const string Remove = ImageFolderName +"\\delete.png";
+
+        private const string ImageFolderName = "Images";
+        private const string VSIconsFolderName = "VSIcons";
 
         private readonly ConcurrentDictionary<string, string> vsIcons;
+        private readonly string vsIconsDirectoryPath;
 
-        public string Windows { get; }
-        public string VSIconsDirectoryPath { get; }
+        public string Windows { get; init; }
 
         public IconProvider(PluginInitContext context)
         {
             vsIcons = new ConcurrentDictionary<string, string>();
 
-            Windows = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, "Images", "windows.png");
+            Windows = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "windows.png");
 
-            VSIconsDirectoryPath = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, "Images", "VSIcons");
-            Directory.CreateDirectory(VSIconsDirectoryPath);
+            vsIconsDirectoryPath = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, VSIconsFolderName);
+            Directory.CreateDirectory(vsIconsDirectoryPath);
 
-            foreach (var iconPath in Directory.EnumerateFiles(VSIconsDirectoryPath))
+            foreach (var iconPath in Directory.EnumerateFiles(vsIconsDirectoryPath))
             {
                 vsIcons.TryAdd(Path.GetFileNameWithoutExtension(iconPath), iconPath);
             }
@@ -30,23 +35,36 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public void ReloadIcons()
         {
-            foreach (var iconPath in Directory.EnumerateFiles(VSIconsDirectoryPath))
+            vsIcons.Clear();
+            foreach (var iconPath in Directory.EnumerateFiles(vsIconsDirectoryPath))
             {
                 vsIcons.TryAdd(Path.GetFileNameWithoutExtension(iconPath), iconPath);
             }
         }
-
-        /// <param name="vsInstanceId"></param>
-        /// <param name="iconPath"></param>
-        /// <returns><see cref="DefaultIcon"/> if <paramref name="vsInstanceId"/> is <see langword="null"/></returns>
-        public bool TryGetIconPath(string vsInstanceId, out string iconPath)
+        public void CreateIcon(VisualStudioInstance vs)
         {
-            if (!string.IsNullOrWhiteSpace(vsInstanceId) && vsIcons.TryGetValue(vsInstanceId, out iconPath))
+            var icon = Icon.ExtractAssociatedIcon(vs.ExePath);
+            var bitmap = icon.ToBitmap();
+            var iconPath = Path.Combine(vsIconsDirectoryPath, $"{vs.InstanceId}.png");
+            using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
+            bitmap.Save(fileStream, ImageFormat.Png);
+            vsIcons.TryAdd(vs.InstanceId, iconPath);
+        }
+
+        public bool TryGetIconPath(string vsInstanceId, out string iconPath, bool localPath = true)
+        {
+            var success = vsIcons.TryGetValue(vsInstanceId, out iconPath);
+            if (localPath && success)
             {
-                return true;
+                var fileName = Path.GetFileName(iconPath);
+                iconPath = Path.Combine(ImageFolderName, VSIconsFolderName, fileName);
             }
-            iconPath = DefaultIcon;
-            return false;
+            else if(!success)
+            {
+                iconPath = DefaultIcon;
+            }
+
+            return success;
         }
     }
 }

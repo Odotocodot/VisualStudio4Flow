@@ -16,14 +16,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string ExePath { get; init; }
         public string DisplayName { get; init; }
         public string Description { get; init; }
-        public string IconPath { get; private set; }
         public string RecentItemsPath { get; init; }
         public string DisplayVersion { get; init; }
 
-        public static async Task<VisualStudioInstance> Create(JsonElement element, IconProvider iconProvider, CancellationToken token = default)
+        public static VisualStudioInstance Create(JsonElement element, IconProvider iconProvider)
         {
             var vs = new VisualStudioInstance(element);
-            await vs.SetIconPath(iconProvider, token);
+            if(!iconProvider.TryGetIconPath(vs.InstanceId, out _))
+                iconProvider.CreateIcon(vs);
             return vs;
         }
 
@@ -42,33 +42,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                            "Microsoft\\VisualStudio",
                                            InstanceId,
                                            "ApplicationPrivateSettings.xml");
-        }
-
-        private async Task SetIconPath(IconProvider iconProvider, CancellationToken cancellationToken = default)
-        {
-            if (iconProvider.TryGetIconPath(InstanceId, out string iconPath))
-            {
-                IconPath = iconPath;
-            }
-            else
-            {
-                try
-                {
-                    await Task.Run(() =>
-                    {
-                        var icon = Icon.ExtractAssociatedIcon(ExePath);
-                        var bitmap = icon.ToBitmap();
-                        var iconPath = Path.Combine(iconProvider.VSIconsDirectoryPath, $"{InstanceId}.png");
-                        using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
-                        bitmap.Save(fileStream, ImageFormat.Png);
-                        IconPath = iconPath;
-                    }, cancellationToken);
-                }
-                catch (Exception)
-                {
-                    IconPath = IconProvider.DefaultIcon;
-                }
-            }
         }
     }
 
