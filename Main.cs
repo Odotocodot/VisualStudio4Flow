@@ -1,38 +1,26 @@
-﻿using Flow.Launcher.Plugin.VisualStudio.UI;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
-using System.Xml;
-using System.Xml.Linq;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
     {
         public PluginInitContext context;
-        private IList<VisualStudioInstance> vsInstances;
-        private bool IsVSInstalled;
-        //private VisualStudioPlugin plugin;
+        private VisualStudioPlugin plugin;
 
         private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
         private static readonly TypeKeyword FilesOnly = new(1, "f:");
 
         private Settings settings;
         private IconProvider iconProvider;
-        private ConcurrentDictionary<string, Entry> recentEntries;
-        private IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
-        public IList<VisualStudioInstance> VSInstances => vsInstances;
 
         private bool startedBackup = false;
+
+        public bool IsVSInstalled => plugin.IsVSInstalled;
         
         public async Task InitAsync(PluginInitContext context)
         {
@@ -41,10 +29,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.VisibilityChanged += OnVisibilityChanged;
 
             iconProvider = new IconProvider(context);
-            recentEntries = new ConcurrentDictionary<string, Entry>();
-            //plugin = new VisualStudioPlugin();
-            vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
-            IsVSInstalled = VSInstances.Any();
+            plugin = await VisualStudioPlugin.Create();
         }
 
         private void OnVisibilityChanged(object sender, VisibilityChangedEventArgs args)
@@ -54,20 +39,19 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             if (args.IsVisible)
             {
-                Task.Run(async () => await GetRecentEntries());
-                //if (!startedBackup)
-                //{
-                //    startedBackup = true;
-                //    settings.Backup(context, recentEntries.Values.ToArray());
-                //}
+                Task.Run(async () => await plugin.GetRecentEntries());
+                if (!startedBackup)
+                {
+                    startedBackup = true;
+                    settings.Backup(context, plugin.RecentEntries.ToArray());
+                }
             }
         }
 
         public async Task ReloadDataAsync()
         {
-            vsInstances = await GetVisualStudioInstances(new CancellationTokenSource());
-            iconProvider.ReloadIcons();      
-            IsVSInstalled = VSInstances.Any();
+            await plugin.GetVisualStudioInstances();
+            iconProvider.ReloadIcons();
         }
 
         public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
@@ -84,20 +68,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             if(query.IsReQuery)
             {
-                await GetRecentEntries(token);
+                await plugin.GetRecentEntries(token);
             }    
 
-            if (!recentEntries.Any())
+            if (!plugin.RecentEntries.Any())
             {
                 return SingleResult("No recent items found");
             }
 
             var selectedRecentItems = query.Search switch
             {
-                string search when string.IsNullOrEmpty(search) => RecentEntries,
-                string search when search.StartsWith(ProjectsOnly.Keyword) => RecentEntries.Where(e => TypeSearch(e, query, ProjectsOnly)),
-                string search when search.StartsWith(FilesOnly.Keyword) => RecentEntries.Where(e => TypeSearch(e, query, FilesOnly)),
-                _ => RecentEntries.Where(e => FuzzySearch(e, query.Search))
+                string search when string.IsNullOrEmpty(search) => plugin.RecentEntries,
+                string search when search.StartsWith(ProjectsOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, ProjectsOnly)),
+                string search when search.StartsWith(FilesOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, FilesOnly)),
+                _ => plugin.RecentEntries.Where(e => FuzzySearch(e, query.Search))
             };
 
             return selectedRecentItems.OrderBy(e => e.Value.LastAccessed).Select(CreateEntryResult).ToList();
@@ -106,13 +90,13 @@ namespace Flow.Launcher.Plugin.VisualStudio
         {
             if (selectedResult.ContextData is Entry currentEntry)
             {
-                return VSInstances.Select(vs =>
+                return plugin.VSInstances.Select(vs =>
                 {
                     return new Result
                     {
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
                         SubTitle = vs.Description,
-                        IcoPath = GetIcon(vs),
+                        IcoPath = iconProvider.TryGetIconPath(vs),
                         Action = c =>
                         {
                             context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
@@ -126,154 +110,16 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     IcoPath = IconProvider.Remove,
                     AsyncAction = async c =>
                     {
-                        await RemoveEntries(currentEntry);
+                        await plugin.RemoveEntries(currentEntry);
+                        context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
                         await Task.Delay(100);
 
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, true);
                         return false;
                     }
                 }).ToList();
-
-                string GetIcon(VisualStudioInstance vs)
-                {
-                    iconProvider.TryGetIconPath(vs.InstanceId, out string iconPath);
-                    return iconPath;
-                }
             }
             return null;
-        }
-
-        public async Task RemoveEntries(params Entry[] entriesToRemove)
-        {
-            foreach (var entry in entriesToRemove)
-            {
-                recentEntries.TryRemove(entry.Key, out _);
-            }
-            await Parallel.ForEachAsync(VSInstances, async (instance, ct) =>
-            {
-                await UpdateRecentItems(instance, ct);
-            });
-        }
-
-        private async Task<VisualStudioInstance[]> GetVisualStudioInstances(CancellationTokenSource ctSource)
-        {
-            var vswhereProcess = Process.Start(new ProcessStartInfo
-            {
-                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe"),
-                Arguments = "-sort -format json",
-                RedirectStandardOutput = true,
-            });
-
-            using var doc = await JsonDocument.ParseAsync(vswhereProcess.StandardOutput.BaseStream, cancellationToken: ctSource.Token);
-
-            int count;
-            if (doc.RootElement.ValueKind != JsonValueKind.Array || (count = doc.RootElement.GetArrayLength()) < 1)
-            {
-                ctSource.Cancel();
-                return Array.Empty<VisualStudioInstance>();
-            }
-
-            var tasks = new List<Task<VisualStudioInstance>>();
-            for (int i = 0; i < count; i++)
-            {
-                int index = i;
-                tasks.Add(Task.Run(() => VisualStudioInstance.Create(doc.RootElement[index], iconProvider),ctSource.Token));
-            }
-
-            return await Task.WhenAll(tasks);
-        }
-
-        private async Task GetRecentEntries(CancellationToken token = default)
-        {
-            var newestVS = VSInstances.MaxBy(vs => File.GetLastWriteTimeUtc(vs.RecentItemsPath));
-            recentEntries.Clear();
-
-            await foreach (var entry in GetRecentEntriesFromInstance(newestVS, token))
-            {
-                recentEntries.TryAdd(entry.Key,entry);
-            } 
-
-            if(!startedBackup)
-            {
-                startedBackup = true;
-                settings.Backup(context, recentEntries.Values.ToArray());
-            }
-
-        }
-
-        private static async IAsyncEnumerable<Entry> GetRecentEntriesFromInstance(VisualStudioInstance vs, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.Read);
-            using var reader = XmlReader.Create(fileStream, new XmlReaderSettings() { Async = true });
-            await reader.MoveToContentAsync();
-
-            bool correctElement = false;
-            while (await reader.ReadAsync())
-            {
-                if (correctElement && reader.NodeType == XmlNodeType.Element && reader.HasAttributes && reader.GetAttribute(0) == "value")
-                {
-                    await reader.ReadAsync();
-                    break;
-                }
-                if (reader.NodeType == XmlNodeType.Element && reader.HasAttributes && reader.GetAttribute(0) == "CodeContainers.Offline")
-                {
-                    correctElement = true;
-                }
-            }
-
-            var entries = AsyncEnumerable.Empty<Entry>();
-            string json = await reader.GetValueAsync();
-
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                await foreach (var entry in entries)
-                {
-                    yield return entry;
-                }
-                yield break;
-            }
-
-            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
-
-            await foreach (var entry in entries)
-            {
-                yield return entry;
-            }
-        }
-
-        private async Task UpdateRecentItems(VisualStudioInstance vs, CancellationToken cancellationToken = default)
-        {
-            if (!RecentEntries.Any())
-                return;
-
-            using var memoryStream = new MemoryStream();
-
-            var json = JsonSerializer.SerializeAsync(memoryStream, RecentEntries.ToArray(), cancellationToken: cancellationToken);
-            ///Open xml document
-            using (var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite))
-            {
-                var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, cancellationToken);
-                var recent = root.Element("content")
-                                 .Element("indexed")
-                                 .Elements("collection")
-                                 .Where(e => (string)e.Attribute("name") == "CodeContainers.Offline")
-                                 .First()
-                                 .Element("value");
-                ///Make sure Json is serialized
-                await json;
-
-                //write new entries to xml value
-                memoryStream.Position = 0;
-                using var streamReader = new StreamReader(memoryStream, Encoding.UTF8);
-                recent.Value = await streamReader.ReadToEndAsync(cancellationToken);
-
-                //save file
-                fileStream.SetLength(0);
-                using var streamWriter = new StreamWriter(fileStream, Encoding.UTF8);
-                await root.SaveAsync(streamWriter, SaveOptions.DisableFormatting, cancellationToken);
-            }
-
         }
 
         private static List<Result> SingleResult(string title)
@@ -301,7 +147,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
                     {
-                        var instance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
+                        var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
                         if (instance != null)
                         {
                             context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
@@ -330,11 +176,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
         }
         public Control CreateSettingPanel()
         {
-            return new SettingsView(new SettingsViewModel(settings, this, iconProvider));
+            return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }
-
-
-
         public record struct TypeKeyword(int Type, string Keyword);
     }
 }

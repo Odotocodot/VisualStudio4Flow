@@ -8,15 +8,17 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
     public class SettingsViewModel : BaseModel
     {
         private readonly Settings settings;
-        private readonly Main plugin;
+        private readonly VisualStudioPlugin plugin;
+        private readonly IAsyncReloadable reloadable;
         private readonly IconProvider iconProvider;
         private VisualStudioModel selectedVSInstance;
 
-        public SettingsViewModel(Settings settings, Main plugin, IconProvider iconProvider)
+        public SettingsViewModel(Settings settings, VisualStudioPlugin plugin, IconProvider iconProvider, IAsyncReloadable reloadable)
         {
             this.settings = settings;
             this.plugin = plugin;
             this.iconProvider = iconProvider;
+            this.reloadable = reloadable;
             SetupVSInstances(settings, plugin);
         }
         public List<VisualStudioModel> VSInstances { get; set; }
@@ -30,14 +32,13 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }
         }
 
-        private void SetupVSInstances(Settings settings, Main plugin)
+        private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
             VSInstances = new List<VisualStudioModel>(plugin.VSInstances.Select(vs => 
             {
-                iconProvider.TryGetIconPath(vs.InstanceId, out string iconPath, false);
                 return new VisualStudioModel
                 {
-                    IconPath = iconPath,
+                    IconPath = iconProvider.TryGetIconPath(vs),
                     Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
                     InstanceId = vs.InstanceId,
                 };
@@ -52,17 +53,20 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         }
         public async Task RefreshInstances()
         {
-            await plugin.ReloadDataAsync();
+            await reloadable.ReloadDataAsync();
             SetupVSInstances(settings, plugin);
             OnPropertyChanged(nameof(VSInstances));
         }
         public void ClearInvalidRecentItems()
         {
             //TODO: after implementing backup
+            //context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
+
         }
         public void ClearAllRecentItems()
         {
             //TODO: after implementing backup
+            //context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
         }
         protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
         {

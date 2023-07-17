@@ -41,30 +41,27 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 vsIcons.TryAdd(Path.GetFileNameWithoutExtension(iconPath), iconPath);
             }
         }
-        public void CreateIcon(VisualStudioInstance vs)
-        {
-            var icon = Icon.ExtractAssociatedIcon(vs.ExePath);
-            var bitmap = icon.ToBitmap();
-            var iconPath = Path.Combine(vsIconsDirectoryPath, $"{vs.InstanceId}.png");
-            using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
-            bitmap.Save(fileStream, ImageFormat.Png);
-            vsIcons.TryAdd(vs.InstanceId, iconPath);
-        }
 
-        public bool TryGetIconPath(string vsInstanceId, out string iconPath, bool localPath = true)
-        {
-            var success = vsIcons.TryGetValue(vsInstanceId, out iconPath);
-            if (localPath && success)
-            {
-                var fileName = Path.GetFileName(iconPath);
-                iconPath = Path.Combine(ImageFolderName, VSIconsFolderName, fileName);
-            }
-            else if(!success)
-            {
-                iconPath = DefaultIcon;
-            }
 
-            return success;
+        public string TryGetIconPath(VisualStudioInstance vs)
+        {
+            if (!vsIcons.TryGetValue(vs.InstanceId, out string iconPath))
+            {
+                try
+                {
+                    var icon = Icon.ExtractAssociatedIcon(vs.ExePath);
+                    var bitmap = icon.ToBitmap();
+                    iconPath = Path.Combine(vsIconsDirectoryPath, $"{vs.InstanceId}.png");
+                    using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
+                    bitmap.Save(fileStream, ImageFormat.Png);
+                    vsIcons.TryAdd(vs.InstanceId, iconPath);
+                }
+                catch (System.Exception)
+                {
+                    iconPath = DefaultIcon;
+                }
+            }
+            return iconPath;
         }
     }
 }

@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
@@ -19,15 +14,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string RecentItemsPath { get; init; }
         public string DisplayVersion { get; init; }
 
-        public static VisualStudioInstance Create(JsonElement element, IconProvider iconProvider)
-        {
-            var vs = new VisualStudioInstance(element);
-            if(!iconProvider.TryGetIconPath(vs.InstanceId, out _))
-                iconProvider.CreateIcon(vs);
-            return vs;
-        }
-
-        private VisualStudioInstance(JsonElement element)
+        public VisualStudioInstance(JsonElement element)
         {
             var instanceId = element.GetProperty("instanceId").GetString();
             InstallationVersion = element.GetProperty("installationVersion").Deserialize<Version>();
