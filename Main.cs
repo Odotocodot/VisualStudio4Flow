@@ -143,7 +143,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
                 if (instance != null)
                 {
-                    iconPath = iconProvider.GetIconPath(instance);
+                    //iconPath = iconProvider.GetIconPath(instance);
                     action = () => context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
                 }
             }
