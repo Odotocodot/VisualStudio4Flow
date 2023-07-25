@@ -12,10 +12,9 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             DataContext = this.viewModel = viewModel;
         }
 
-        private void ClearInvalid_Click(object sender, RoutedEventArgs e)
+        private async void ClearInvalid_Click(object sender, RoutedEventArgs e)
         {
-            //TODO:
-            var result = MessageBox.Show("This will clear # items from the recent items list: \nYAH YAH \nYAH",
+            var result = MessageBox.Show("This will clear all invalid (missing) items from the recent items list in Visual Studio.\nAre you sure you want to continue?",
                                          "Remove Items",
                                          MessageBoxButton.OKCancel,
                                          MessageBoxImage.Warning,
@@ -23,30 +22,45 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
             if(result == MessageBoxResult.OK)
             {
-                viewModel.ClearInvalidRecentItems();
+                await viewModel.ClearInvalidRecentItems();
             }
             
         }
 
-        private void ClearAll_Click(object sender, RoutedEventArgs e)
+        private async void ClearAll_Click(object sender, RoutedEventArgs e)
         {
-            var result = MessageBox.Show("This will clear all items on the recent items list.",
+            var result = MessageBox.Show("This will clear all items on the recent items list in Visual Studio.\nAre you sure you want to continue?",
                                          "Remove Items",
                                          MessageBoxButton.OKCancel,
                                          MessageBoxImage.Warning,
                                          MessageBoxResult.Cancel);
+
             if(result == MessageBoxResult.OK)
             {
-                viewModel.ClearAllRecentItems();    
+                await viewModel.ClearAllRecentItems();    
             }
         }
 
         private async void Refresh_Click(object sender, RoutedEventArgs e)
         {
-            var button = (Button)sender;
-            button.IsEnabled = false;
+            var element = (UIElement)sender;
+            element.IsEnabled = false;
             await viewModel.RefreshInstances();
-            button.IsEnabled = true;
+            element.IsEnabled = true;
+        }
+
+        private async void RevertToBackup(object sender, RoutedEventArgs e)
+        {
+            var element = (UIElement)sender;
+            element.IsEnabled = false;
+            await viewModel.RevertToBackup();
+            element.IsEnabled = true;
+
+        }
+
+        private void UpdateBackupTime(object sender, RoutedEventArgs e)
+        {
+            viewModel.UpdateLastBackupTime();
         }
     }
 }

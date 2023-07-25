@@ -9,16 +9,19 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
     {
         private readonly Settings settings;
         private readonly VisualStudioPlugin plugin;
-        private readonly IAsyncReloadable reloadable;
         private readonly IconProvider iconProvider;
+        private readonly IAsyncReloadable reloadable;
+
         private VisualStudioModel selectedVSInstance;
 
+        public SettingsViewModel() { }
         public SettingsViewModel(Settings settings, VisualStudioPlugin plugin, IconProvider iconProvider, IAsyncReloadable reloadable)
         {
             this.settings = settings;
             this.plugin = plugin;
             this.iconProvider = iconProvider;
             this.reloadable = reloadable;
+            LastBackup = $"[Last Backup: {settings.LastBackup.ToShortDateString()}]";
             SetupVSInstances(settings, plugin);
         }
         public List<VisualStudioModel> VSInstances { get; set; }
@@ -27,10 +30,13 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             get => selectedVSInstance; 
             set
             {
-                SetProperty(ref selectedVSInstance, value);
-                settings.DefaultVSId = selectedVSInstance.InstanceId;
+                if(SetProperty(ref selectedVSInstance, value))
+                {
+                    settings.DefaultVSId = selectedVSInstance.InstanceId;
+                }
             }
         }
+        public static string LastBackup { get; set; }
 
         private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
@@ -57,17 +63,12 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             SetupVSInstances(settings, plugin);
             OnPropertyChanged(nameof(VSInstances));
         }
-        public void ClearInvalidRecentItems()
-        {
-            //TODO: after implementing backup
-            //context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
+        public async Task ClearInvalidRecentItems() => await plugin.RemoveInvalidEntries();
+        public async Task ClearAllRecentItems() => await plugin.RemoveAllEntries();
+        public async Task RevertToBackup() => await plugin.RevertToBackup();
+        public void UpdateLastBackupTime() => OnPropertyChanged(nameof(LastBackup));
 
-        }
-        public void ClearAllRecentItems()
-        {
-            //TODO: after implementing backup
-            //context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
-        }
+
         protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
         {
             if (Equals(field, newValue))

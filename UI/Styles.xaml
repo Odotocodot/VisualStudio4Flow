@@ -90,6 +90,6 @@
         BasedOn="{StaticResource DefaultButtonStyle}"
         TargetType="Button">
         <Setter Property="Width" Value="150" />
-        <Setter Property="Margin" Value="10,4,18,4" />
+        <Setter Property="Margin" Value="16,4,12,4" />
     </Style>
 </ResourceDictionary>

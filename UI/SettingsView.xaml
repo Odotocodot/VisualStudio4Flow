@@ -3,7 +3,6 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="clr-namespace:Flow.Launcher.Plugin.VisualStudio"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="clr-namespace:Flow.Launcher.Plugin.VisualStudio.UI"
     d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
@@ -12,6 +11,7 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <ResourceDictionary>
+            <vm:SettingsViewModel x:Key="DummyInstance" />
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
@@ -50,7 +50,11 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button Height="{Binding ActualHeight, ElementName=ComboBox}" Margin="0,4,18,4" Click="Refresh_Click">
+                    <Button
+                        Height="{Binding ActualHeight, ElementName=ComboBox}"
+                        Margin="0,4,18,4"
+                        Click="Refresh_Click"
+                        ToolTip="Reload Visual Studio Instances">
                         <TextBlock
                             Margin="0"
                             FontSize="16"
@@ -73,9 +77,53 @@
                         Content="Clear Invalid Items"
                         Style="{StaticResource SettingButton}" />
                     <Button
+                        Name="ClearAllBtn"
                         Click="ClearAll_Click"
                         Content="Clear All Items"
                         Style="{StaticResource SettingButton}" />
+                    <Button
+                        Width="Auto"
+                        Height="{Binding ActualHeight, ElementName=ClearAllBtn}"
+                        Margin="0,4,18,4"
+                        ToolTip="Revert to backup">
+                        <Button.Style>
+                            <Style BasedOn="{StaticResource SettingButton}" TargetType="{x:Type Button}">
+                                <Style.Triggers>
+                                    <EventTrigger RoutedEvent="Click">
+                                        <EventTrigger.Actions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="ContextMenu.IsOpen">
+                                                        <DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True" />
+                                                    </BooleanAnimationUsingKeyFrames>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger.Actions>
+                                    </EventTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.ContextMenu>
+                            <ContextMenu Opened="UpdateBackupTime">
+                                <MenuItem Click="RevertToBackup">
+                                    <MenuItem.Header>
+                                        <TextBlock>
+                                            <Run Text="Revert to Backup&#x09;&#x09;" />
+                                            <Run Text="{Binding Source={StaticResource DummyInstance}, Path=LastBackup}" />
+                                        </TextBlock>
+                                    </MenuItem.Header>
+                                </MenuItem>
+                                <!--<MenuItem Click="" Header="Backup Now" />-->
+                                <MenuItem Header="The list of recent items is backed up once a day, provided&#10;Flow Launcher has been opened at least once." IsEnabled="False" />
+                                <!--<MenuItem Header="Create backups" IsCheckable="True" />-->
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <TextBlock
+                            Margin="0"
+                            FontSize="16"
+                            Style="{StaticResource Glyph}"
+                            Text="&#xe81c;" />
+                    </Button>
                 </StackPanel>
                 <TextBlock Style="{StaticResource Glyph}" Text="&#xe74d;" />
             </ItemsControl>
