@@ -19,10 +19,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private Settings settings;
         private IconProvider iconProvider;
 
-        private bool startedBackup = false;
-
-        public bool IsVSInstalled => plugin.IsVSInstalled;
-        
         public async Task InitAsync(PluginInitContext context)
         {
             this.context = context;
@@ -30,7 +26,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.VisibilityChanged += OnVisibilityChanged;
 
             iconProvider = new IconProvider(context);
-            plugin = await VisualStudioPlugin.Create();
+            plugin = await VisualStudioPlugin.Create(settings, context);
         }
 
         private void OnVisibilityChanged(object sender, VisibilityChangedEventArgs args)
@@ -41,11 +37,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (args.IsVisible)
             {
                 Task.Run(async () => await plugin.GetRecentEntries());
-                if (!startedBackup)
-                {
-                    startedBackup = true;
-                    settings.Backup(context, plugin.RecentEntries.ToArray());
-                }
             }
         }
 
@@ -62,7 +53,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return null;
             }
 
-            if (!IsVSInstalled)
+            if (!plugin.IsVSInstalled)
             {
                 return SingleResult("No installed version of Visual Studio was found");
             }
@@ -85,7 +76,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 _ => plugin.RecentEntries.Where(e => FuzzySearch(e, query.Search))
             };
 
-            return selectedRecentItems.OrderBy(e => e.Value.LastAccessed).Select(CreateEntryResult).ToList();
+            return selectedRecentItems.OrderBy(e => e.Value.LastAccessed)
+                                      .Select(CreateEntryResult)
+                                      .ToList();
         }
         public List<Result> LoadContextMenus(Result selectedResult)
         {
@@ -111,12 +104,11 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     IcoPath = IconProvider.Remove,
                     AsyncAction = async c =>
                     {
-                        await plugin.RemoveEntries(currentEntry);
-                        context.API.ShowMsg($"Removed Recent Item", $"Removed \"{currentEntry.Key}\" from recent items list");
+                        await plugin.RemoveEntry(currentEntry);
                         await Task.Delay(100);
-
-                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, true);
-                        return false;
+                        
+                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, false);
+                        return true;
                     }
                 }).ToList();
             }
