@@ -15,8 +15,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string Path => Value.LocalProperties.FullPath;
         [JsonIgnore]
         public int ItemType => Value.LocalProperties.Type;
-        [JsonIgnore]
-        public List<int> HighlightData { get; set; }
 
         public override bool Equals(object obj)
         {

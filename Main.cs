@@ -18,6 +18,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private Settings settings;
         private IconProvider iconProvider;
+        private Dictionary<Entry, List<int>> entryHighlightData;
 
         public async Task InitAsync(PluginInitContext context)
         {
@@ -27,6 +28,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             iconProvider = new IconProvider(context);
             plugin = await VisualStudioPlugin.Create(settings, context);
+            entryHighlightData = new Dictionary<Entry, List<int>>();
         }
 
         private void OnVisibilityChanged(object sender, VisibilityChangedEventArgs args)
@@ -67,7 +69,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return SingleResult("No recent items found");
             }
-
+            entryHighlightData.Clear();
             var selectedRecentItems = query.Search switch
             {
                 string search when string.IsNullOrEmpty(search) => plugin.RecentEntries,
@@ -139,10 +141,11 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     action = () => context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
                 }
             }
+            entryHighlightData.TryGetValue(e, out var highlightData);
             return new Result
             {
                 Title = Path.GetFileNameWithoutExtension(e.Path),
-                TitleHighlightData = e.HighlightData,
+                TitleHighlightData = highlightData,
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
@@ -158,16 +161,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private bool FuzzySearch(Entry entry, string search)
         {
             var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
-            entry.HighlightData = matchResult.MatchData;
+            entryHighlightData.Add(entry, matchResult.MatchData);
             return matchResult.IsSearchPrecisionScoreMet();
         }
         private bool TypeSearch(Entry entry, Query query, TypeKeyword typeKeyword)
         {
             var search = query.Search[typeKeyword.Keyword.Length..];
             if (string.IsNullOrWhiteSpace(search))
+            {
                 return entry.ItemType == typeKeyword.Type;
+            }
             else
+            {
                 return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
+            }
         }
         public Control CreateSettingPanel()
         {
