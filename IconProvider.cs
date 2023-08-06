@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
-using System.IO;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {

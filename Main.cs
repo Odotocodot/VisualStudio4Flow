@@ -161,7 +161,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private bool FuzzySearch(Entry entry, string search)
         {
             var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
-            entryHighlightData.Add(entry, matchResult.MatchData);
+            entryHighlightData[entry] = matchResult.MatchData;
             return matchResult.IsSearchPrecisionScoreMet();
         }
         private bool TypeSearch(Entry entry, Query query, TypeKeyword typeKeyword)

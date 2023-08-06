@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,9 +9,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using System.Xml;
-using System.Collections.Concurrent;
+using System.Xml.Linq;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
@@ -105,20 +105,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
             }
 
-            var entries = AsyncEnumerable.Empty<Entry>();
+            //var entries = AsyncEnumerable.Empty<Entry>();
             string json = await reader.GetValueAsync();
 
             if (string.IsNullOrWhiteSpace(json))
             {
-                await foreach (var entry in entries)
-                {
-                    yield return entry;
-                }
+                //await foreach (var entry in entries)
+                //{
+                //    yield return entry;
+                //}
                 yield break;
             }
 
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
+            var entries = JsonSerializer.DeserializeAsyncEnumerable<Entry>(memoryStream, cancellationToken: cancellationToken);
 
             await foreach (var entry in entries)
             {
