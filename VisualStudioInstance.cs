@@ -10,7 +10,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public Version InstallationVersion { get; init; }
         public string ExePath { get; init; }
         public string DisplayName { get; init; }
-        public string Description { get; init; }
         public string RecentItemsPath { get; init; }
         public string DisplayVersion { get; init; }
 
@@ -20,7 +19,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
             InstallationVersion = element.GetProperty("installationVersion").Deserialize<Version>();
             ExePath = element.GetProperty("productPath").GetString();
             DisplayName = element.GetProperty("displayName").GetString();
-            Description = element.GetProperty("description").GetString();
             DisplayVersion = element.GetProperty("catalog").GetProperty("productDisplayVersion").GetString();
 
             InstanceId = $"{InstallationVersion.Major}.0_{instanceId}";

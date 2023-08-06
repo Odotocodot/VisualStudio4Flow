@@ -91,7 +91,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     return new Result
                     {
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
-                        SubTitle = vs.Description,
+                        SubTitle = vs.ExePath,
                         IcoPath = iconProvider.GetIconPath(vs),
                         Action = c =>
                         {
