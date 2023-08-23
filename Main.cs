@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Controls;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
@@ -176,7 +175,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
             }
         }
-        public Control CreateSettingPanel()
+        public System.Windows.Controls.Control CreateSettingPanel()
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }

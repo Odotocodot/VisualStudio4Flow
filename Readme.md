@@ -7,8 +7,7 @@
     </a>
 </p>
 
-Visual Studio for Flow Launcher 
-==================
+<h1 align="center">Visual Studio for Flow Launcher</h1>
 
 A [Flow launcher](https://github.com/Flow-Launcher/Flow.Launcher) to let you quickly open your recent projects, solutions and files in Visual Studio.
 
