@@ -33,7 +33,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                 OnPropertyChanged();
             }
         }
-        public string LastBackup => $"[Last Backup: {settings.LastBackup}]";
+        public string LastBackup => $"[Last Backup: {settings.LastBackup.ToLocalTime()}]";
         public bool AutoUpdateBackup
         {
             get => settings.AutoUpdateBackup;

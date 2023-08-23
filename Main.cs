@@ -112,7 +112,18 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, false);
                         return true;
                     }
-                }).ToList();
+                }).Append(new Result
+                {
+                    Title = $"Open in File Explorer",
+                    SubTitle = currentEntry.Path,
+                    IcoPath = IconProvider.Folder,
+                    Action = c =>
+                    {
+                        context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
+                        return true;
+                    }
+                })
+                .ToList();
             }
             return null;
         }

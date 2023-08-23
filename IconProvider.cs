@@ -9,6 +9,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
     {
         public const string DefaultIcon = ImageFolderName + "\\icon.png";
         public const string Remove = ImageFolderName +"\\delete.png";
+        public const string Folder = ImageFolderName +"\\folder.png";
 
         private const string ImageFolderName = "Images";
         private const string VSIconsFolderName = "VSIcons";
