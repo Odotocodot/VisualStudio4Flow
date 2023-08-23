@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Flow.Launcher.Plugin.VisualStudio.UI
@@ -14,29 +13,36 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
         private VisualStudioModel selectedVSInstance;
 
-        public SettingsViewModel() { }
         public SettingsViewModel(Settings settings, VisualStudioPlugin plugin, IconProvider iconProvider, IAsyncReloadable reloadable)
         {
             this.settings = settings;
             this.plugin = plugin;
             this.iconProvider = iconProvider;
             this.reloadable = reloadable;
-            LastBackup = $"[Last Backup: {settings.LastBackup.ToShortDateString()}]";
             SetupVSInstances(settings, plugin);
         }
+
         public List<VisualStudioModel> VSInstances { get; set; }
         public VisualStudioModel SelectedVSInstance
         {
             get => selectedVSInstance; 
             set
             {
-                if(SetProperty(ref selectedVSInstance, value))
-                {
-                    settings.DefaultVSId = selectedVSInstance.InstanceId;
-                }
+                selectedVSInstance = value;
+                settings.DefaultVSId = selectedVSInstance.InstanceId;
+                OnPropertyChanged();
             }
         }
-        public static string LastBackup { get; set; }
+        public string LastBackup => $"[Last Backup: {settings.LastBackup}]";
+        public bool AutoUpdateBackup
+        {
+            get => settings.AutoUpdateBackup;
+            set
+            {
+                settings.AutoUpdateBackup = value;
+                OnPropertyChanged();
+            }
+        }
 
         private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
@@ -66,18 +72,8 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         public async Task ClearInvalidRecentItems() => await plugin.RemoveInvalidEntries();
         public async Task ClearAllRecentItems() => await plugin.RemoveAllEntries();
         public async Task RevertToBackup() => await plugin.RevertToBackup();
+        public async Task BackupNow() => await Task.Run(plugin.UpdateBackup);
         public void UpdateLastBackupTime() => OnPropertyChanged(nameof(LastBackup));
-
-
-        protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
-        {
-            if (Equals(field, newValue))
-                return false;
-
-            field = newValue;
-            OnPropertyChanged(propertyName);
-            return true;
-        }
 
         public class VisualStudioModel
         {

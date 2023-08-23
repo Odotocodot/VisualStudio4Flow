@@ -17,12 +17,15 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private readonly string vsIconsDirectoryPath;
 
         public string Windows { get; init; }
+        public string Notification { get; init; }
+        
 
         public IconProvider(PluginInitContext context)
         {
             vsIcons = new ConcurrentDictionary<string, string>();
 
             Windows = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "windows.png");
+            Notification = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "notification.png");
 
             vsIconsDirectoryPath = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, VSIconsFolderName);
             Directory.CreateDirectory(vsIconsDirectoryPath);

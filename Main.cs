@@ -26,7 +26,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.VisibilityChanged += OnVisibilityChanged;
 
             iconProvider = new IconProvider(context);
-            plugin = await VisualStudioPlugin.Create(settings, context);
+            plugin = await VisualStudioPlugin.Create(settings, context, iconProvider);
             entryHighlightData = new Dictionary<Entry, List<int>>();
         }
 
@@ -68,6 +68,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return SingleResult("No recent items found");
             }
+
             entryHighlightData.Clear();
             var selectedRecentItems = query.Search switch
             {
