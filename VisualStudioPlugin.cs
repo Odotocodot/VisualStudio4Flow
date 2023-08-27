@@ -35,7 +35,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             this.iconProvider = iconProvider;
         }
 
-        public bool IsVSInstalled => vsInstances.Any();
+        public bool IsVSInstalled => !vsInstances.IsEmpty;
         public IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
         public IEnumerable<VisualStudioInstance> VSInstances => vsInstances;
 
@@ -59,7 +59,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (doc.RootElement.ValueKind != JsonValueKind.Array || (count = doc.RootElement.GetArrayLength()) < 1)
                 return;
 
-            Parallel.For(0,count, index => vsInstances.Add(new VisualStudioInstance(doc.RootElement[index])));
+            Parallel.For(0, count, index => vsInstances.Add(new VisualStudioInstance(doc.RootElement[index])));
 
         }
         public async Task GetRecentEntries(CancellationToken token = default)
@@ -113,7 +113,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
             var json = await reader.GetValueAsync();
-            
+
             try
             {
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
@@ -135,7 +135,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
             await UpdateVisualStudioInstances();
-            context.API.ShowMsg("Visual Studio Plugin", $"Restored {recentEntries.Count} entr{(recentEntries.Count != 1 ? "ies" : "y")} from {settings.LastBackup} backup.",iconProvider.Notification);
+            context.API.ShowMsg("Visual Studio Plugin", $"Restored {recentEntries.Count} entr{(recentEntries.Count != 1 ? "ies" : "y")} from {settings.LastBackup} backup.", iconProvider.Notification);
         }
 
         public async Task RemoveAllEntries()
@@ -151,7 +151,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (recentEntries.TryRemove(entryToRemove.Key, out _))
             {
                 await UpdateVisualStudioInstances();
-                context.API.ShowMsg($"Visual Studio Plugin", $"Removed \"{entryToRemove.Key}\" from the recent items list",iconProvider.Notification);
+                context.API.ShowMsg($"Visual Studio Plugin", $"Removed \"{entryToRemove.Key}\" from the recent items list", iconProvider.Notification);
             }
 
         }
