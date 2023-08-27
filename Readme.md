@@ -27,8 +27,8 @@ pm install Visual Studio
 | Command               | Description                                       |
 | :-------------------- | :------------------------------------------------ |
 | `[ {your search}`     | Search all recent items (if empty shows all).     |
-| `[ p: {your search}]` | Search only recent projects (if empty shows all). |
-| `[ f: {your search}]` | Search only recent files (if empty shows all).    |
+| `[ p: {your search}` | Search only recent projects (if empty shows all). |
+| `[ f: {your search}` | Search only recent files (if empty shows all).    |
 
 Search all recent items from all your Visual Studio installations.
 
