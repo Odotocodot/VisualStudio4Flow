@@ -6,7 +6,7 @@
     "Author": "Odotocodot",
     "Version": "1.0.0",
     "Language": "csharp",
-    "Website": "https://github.com/Odotocodot/Flow.Launcher.Plugin.VisualStudio",
+    "Website": "https://github.com/Odotocodot/VisualStudio4Flow",
     "IcoPath": "Images\\icon.png",
     "ExecuteFileName": "Flow.Launcher.Plugin.VisualStudio.dll"
 }
