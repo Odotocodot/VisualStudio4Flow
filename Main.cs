@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Controls;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
@@ -27,7 +26,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.VisibilityChanged += OnVisibilityChanged;
 
             iconProvider = new IconProvider(context);
-            plugin = await VisualStudioPlugin.Create(settings, context);
+            plugin = await VisualStudioPlugin.Create(settings, context, iconProvider);
             entryHighlightData = new Dictionary<Entry, List<int>>();
         }
 
@@ -69,6 +68,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return SingleResult("No recent items found");
             }
+
             entryHighlightData.Clear();
             var selectedRecentItems = query.Search switch
             {
@@ -112,7 +112,18 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, false);
                         return true;
                     }
-                }).ToList();
+                }).Append(new Result
+                {
+                    Title = $"Open in File Explorer",
+                    SubTitle = currentEntry.Path,
+                    IcoPath = IconProvider.Folder,
+                    Action = c =>
+                    {
+                        context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
+                        return true;
+                    }
+                })
+                .ToList();
             }
             return null;
         }
@@ -176,7 +187,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
             }
         }
-        public Control CreateSettingPanel()
+        public System.Windows.Controls.Control CreateSettingPanel()
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }

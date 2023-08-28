@@ -11,7 +11,6 @@
     mc:Ignorable="d">
     <UserControl.Resources>
         <ResourceDictionary>
-            <vm:SettingsViewModel x:Key="DummyInstance" />
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
@@ -104,18 +103,15 @@
                             </Style>
                         </Button.Style>
                         <Button.ContextMenu>
-                            <ContextMenu Opened="UpdateBackupTime">
-                                <MenuItem Click="RevertToBackup">
-                                    <MenuItem.Header>
-                                        <TextBlock>
-                                            <Run Text="Revert to Backup&#x09;&#x09;" />
-                                            <Run Text="{Binding Source={StaticResource DummyInstance}, Path=LastBackup}" />
-                                        </TextBlock>
-                                    </MenuItem.Header>
-                                </MenuItem>
-                                <!--<MenuItem Click="" Header="Backup Now" />-->
-                                <MenuItem Header="The list of recent items is backed up once a day, provided&#10;Flow Launcher has been opened at least once." IsEnabled="False" />
-                                <!--<MenuItem Header="Create backups" IsCheckable="True" />-->
+                            <ContextMenu Name="CtxMenu" Opened="UpdateBackupTime">
+                                <MenuItem Header="{Binding LastBackup, Mode=OneWay}" IsEnabled="False" />
+                                <MenuItem Click="RevertToBackup" Header="Revert to Backup" />
+                                <MenuItem Click="BackupNow" Header="Backup Now" />
+                                <MenuItem
+                                    Header="Automatically Update Backup"
+                                    IsCheckable="True"
+                                    IsChecked="{Binding AutoUpdateBackup}" />
+                                <MenuItem Header="The list of recent items backup is updated&#10;once a day, provided Flow Launcher has&#10;been opened at least once." IsEnabled="False" />
                             </ContextMenu>
                         </Button.ContextMenu>
                         <TextBlock

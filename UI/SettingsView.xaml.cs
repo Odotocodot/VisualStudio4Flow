@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace Flow.Launcher.Plugin.VisualStudio.UI
@@ -10,6 +12,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         {
             InitializeComponent();
             DataContext = this.viewModel = viewModel;
+            CtxMenu.DataContext = viewModel; //https://stackoverflow.com/questions/59584206/wpf-contextmenu-loses-datacontext-if-it-is-displayed-using-a-left-click-event
         }
 
         private async void ClearInvalid_Click(object sender, RoutedEventArgs e)
@@ -41,26 +44,20 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }
         }
 
-        private async void Refresh_Click(object sender, RoutedEventArgs e)
+        private async void Refresh_Click(object sender, RoutedEventArgs e) => await DisableSenderWhileAwaiting(sender, viewModel.RefreshInstances);
+
+        private async void RevertToBackup(object sender, RoutedEventArgs e) => await DisableSenderWhileAwaiting(sender, viewModel.RevertToBackup);
+
+        private async void BackupNow(object sender, RoutedEventArgs e) => await DisableSenderWhileAwaiting(sender, viewModel.BackupNow);
+
+        private void UpdateBackupTime(object sender, RoutedEventArgs e) => viewModel.UpdateLastBackupTime();
+
+        private static async Task DisableSenderWhileAwaiting(object sender, Func<Task> action)
         {
             var element = (UIElement)sender;
             element.IsEnabled = false;
-            await viewModel.RefreshInstances();
+            await action();
             element.IsEnabled = true;
-        }
-
-        private async void RevertToBackup(object sender, RoutedEventArgs e)
-        {
-            var element = (UIElement)sender;
-            element.IsEnabled = false;
-            await viewModel.RevertToBackup();
-            element.IsEnabled = true;
-
-        }
-
-        private void UpdateBackupTime(object sender, RoutedEventArgs e)
-        {
-            viewModel.UpdateLastBackupTime();
         }
     }
 }

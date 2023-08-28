@@ -9,6 +9,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
     {
         public const string DefaultIcon = ImageFolderName + "\\icon.png";
         public const string Remove = ImageFolderName +"\\delete.png";
+        public const string Folder = ImageFolderName +"\\folder.png";
 
         private const string ImageFolderName = "Images";
         private const string VSIconsFolderName = "VSIcons";
@@ -17,12 +18,15 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private readonly string vsIconsDirectoryPath;
 
         public string Windows { get; init; }
+        public string Notification { get; init; }
+        
 
         public IconProvider(PluginInitContext context)
         {
             vsIcons = new ConcurrentDictionary<string, string>();
 
             Windows = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "windows.png");
+            Notification = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "notification.png");
 
             vsIconsDirectoryPath = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, VSIconsFolderName);
             Directory.CreateDirectory(vsIconsDirectoryPath);
