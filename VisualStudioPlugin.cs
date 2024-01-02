@@ -44,7 +44,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             using var vswhere = Process.Start(new ProcessStartInfo
             {
                 FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe"),
-                Arguments = "-sort -format json -utf8",
+                Arguments = "-sort -format json -utf8 -prerelease",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
