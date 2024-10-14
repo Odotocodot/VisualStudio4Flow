@@ -41,9 +41,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public async Task GetVisualStudioInstances()
         {
+            var vsWherePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe");
+            if (!File.Exists(vsWherePath))
+            {
+                throw new FileNotFoundException("vswhere.exe could not be found.");
+            }
             using var vswhere = Process.Start(new ProcessStartInfo
             {
-                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe"),
+                FileName = vsWherePath,
                 Arguments = "-sort -format json -utf8 -prerelease",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
