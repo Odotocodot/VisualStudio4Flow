@@ -138,14 +138,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.ShowMsg("Visual Studio Plugin", $"Restored {recentEntries.Count} entr{(recentEntries.Count != 1 ? "ies" : "y")} from {settings.LastBackup} backup.", iconProvider.Notification);
         }
 
-        public async Task RemoveAllEntries()
-        {
-            await RemoveEntries(false);
-        }
-        public async Task RemoveInvalidEntries()
-        {
-            await RemoveEntries(true);
-        }
+        public async Task RemoveAllEntries() => await RemoveEntries(false);
+
+        public async Task RemoveInvalidEntries() => await RemoveEntries(true);
+
         public async Task RemoveEntry(Entry entryToRemove)
         {
             if (recentEntries.TryRemove(entryToRemove.Key, out _))
@@ -185,7 +181,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 using var memoryStream = new MemoryStream();
 
                 var json = JsonSerializer.SerializeAsync(memoryStream, RecentEntries.ToArray(), cancellationToken: ct);
-                ///Open xml document
+                //Open xml document
                 using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
                 var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, ct);
                 var recent = root.Element("content")
@@ -194,7 +190,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                  .Where(e => (string)e.Attribute("name") == "CodeContainers.Offline")
                                  .First()
                                  .Element("value");
-                ///Make sure Json is serialized
+                //Make sure Json is serialized
                 await json;
 
                 //write new entries to xml value

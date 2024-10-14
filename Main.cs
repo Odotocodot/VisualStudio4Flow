@@ -9,7 +9,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
     {
-        public PluginInitContext context;
+        private PluginInitContext context;
         private VisualStudioPlugin plugin;
 
         private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
@@ -93,7 +93,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
                         SubTitle = vs.ExePath,
                         IcoPath = iconProvider.GetIconPath(vs),
-                        Action = c =>
+                        Action = _ =>
                         {
                             context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
                             return true;
@@ -104,12 +104,12 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Remove \"{selectedResult.Title}\" from recent items list.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
-                    AsyncAction = async c =>
+                    AsyncAction = async _ =>
                     {
                         await plugin.RemoveEntry(currentEntry);
                         await Task.Delay(100);
                         
-                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, false);
+                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
                         return true;
                     }
                 }).Append(new Result
@@ -117,7 +117,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Open in File Explorer",
                     SubTitle = currentEntry.Path,
                     IcoPath = IconProvider.Folder,
-                    Action = c =>
+                    Action = _ =>
                     {
                         context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
                         return true;
@@ -161,7 +161,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
                 IcoPath =  iconPath,
-                Action = c =>
+                Action = _ =>
                 {
                     action();
                     return true;

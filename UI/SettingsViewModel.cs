@@ -75,11 +75,6 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         public async Task BackupNow() => await Task.Run(plugin.UpdateBackup);
         public void UpdateLastBackupTime() => OnPropertyChanged(nameof(LastBackup));
 
-        public class VisualStudioModel
-        {
-            public string IconPath { get; init; }
-            public string Name { get; init; }
-            public string InstanceId { get; init; }
-        }
+
     }
 }

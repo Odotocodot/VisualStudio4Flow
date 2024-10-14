@@ -26,7 +26,6 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <ComboBox
                         Name="ComboBox"
-                        Grid.Column="2"
                         MinWidth="350"
                         Margin="10,4,12,4"
                         d:SelectedIndex="0"
