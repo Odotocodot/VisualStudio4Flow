@@ -33,6 +33,18 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                 OnPropertyChanged();
             }
         }
+
+        public string VswherePath
+        {
+            get => settings.VswherePath;
+            set
+            {
+                settings.VswherePath = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string DefaultVswherePath => $"Default Path: \"{Settings.DefaultVswherePath}\"";
         public string LastBackup => $"[Last Backup: {settings.LastBackup.ToLocalTime()}]";
         public bool AutoUpdateBackup
         {

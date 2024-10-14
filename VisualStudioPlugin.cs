@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -43,26 +44,36 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public async Task GetVisualStudioInstances()
         {
-            var vsWherePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe");
-            if (!File.Exists(vsWherePath))
+
+            if (!File.Exists(settings.VswherePath))
             {
                 validVswherePath = false;
                 return;
             }
 
             validVswherePath = true;
-            
-            using var vswhere = Process.Start(new ProcessStartInfo
+
+            Process vswhere;
+            try
             {
-                FileName = vsWherePath,
-                Arguments = "-sort -format json -utf8 -prerelease",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
+                vswhere = Process.Start(new ProcessStartInfo
+                {
+                    FileName = settings.VswherePath,
+                    Arguments = "-sort -format json -utf8 -prerelease",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
 
+            }
+            catch (Exception ex) when (ex is Win32Exception || ex is InvalidOperationException)
+            {
+                context.API.LogException(nameof(VisualStudioPlugin), "Failed to start vswhere.exe", ex);
+                validVswherePath = false;
+                return;
+            }
 
-            using var doc = await JsonDocument.ParseAsync(vswhere.StandardOutput.BaseStream);
+            var doc = await JsonDocument.ParseAsync(vswhere.StandardOutput.BaseStream);
 
             vsInstances.Clear();
 
@@ -71,6 +82,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return;
 
             Parallel.For(0, count, index => vsInstances.Add(new VisualStudioInstance(doc.RootElement[index])));
+
+            doc?.Dispose();
+            vswhere?.Dispose();
 
         }
         public async Task GetRecentEntries(CancellationToken token = default)

@@ -56,7 +56,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             if (!plugin.ValidVswherePath)
             {
-                return SingleResult("Could not find vswhere.exe. Please set the path in plugin settings.");
+                return SingleResult("Could not find vswhere.exe. Please set the path in the plugin settings.", context.API.OpenSettingDialog);
             }
             
             if (!plugin.IsVSInstalled)
@@ -133,7 +133,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             return null;
         }
 
-        private static List<Result> SingleResult(string title)
+        private static List<Result> SingleResult(string title, Action action = null)
         {
             return new List<Result>
             {
@@ -141,6 +141,11 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     Title = title,
                     IcoPath = IconProvider.DefaultIcon,
+                    Action = _ =>
+                    {
+                        action?.Invoke();
+                        return action != null;
+                    }
                 }
             };
         }
