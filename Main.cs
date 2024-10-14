@@ -54,6 +54,11 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return null;
             }
 
+            if (!plugin.ValidVswherePath)
+            {
+                return SingleResult("Could not find vswhere.exe. Please set the path in plugin settings.");
+            }
+            
             if (!plugin.IsVSInstalled)
             {
                 return SingleResult("No installed version of Visual Studio was found");
@@ -191,6 +196,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }
-        public record struct TypeKeyword(int Type, string Keyword);
+        private record struct TypeKeyword(int Type, string Keyword);
     }
 }

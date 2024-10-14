@@ -20,7 +20,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private readonly IconProvider iconProvider;
         private readonly ConcurrentDictionary<string, Entry> recentEntries = new();
         private readonly ConcurrentBag<VisualStudioInstance> vsInstances = new();
-        private bool doneBackupToday = false;
+        private bool doneBackupToday;
+        private bool validVswherePath;
 
         public static async Task<VisualStudioPlugin> Create(Settings settings, PluginInitContext context, IconProvider iconProvider)
         {
@@ -35,6 +36,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             this.iconProvider = iconProvider;
         }
 
+        public bool ValidVswherePath => validVswherePath;
         public bool IsVSInstalled => !vsInstances.IsEmpty;
         public IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
         public IEnumerable<VisualStudioInstance> VSInstances => vsInstances;
@@ -44,8 +46,12 @@ namespace Flow.Launcher.Plugin.VisualStudio
             var vsWherePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe");
             if (!File.Exists(vsWherePath))
             {
-                throw new FileNotFoundException("vswhere.exe could not be found.");
+                validVswherePath = false;
+                return;
             }
+
+            validVswherePath = true;
+            
             using var vswhere = Process.Start(new ProcessStartInfo
             {
                 FileName = vsWherePath,
