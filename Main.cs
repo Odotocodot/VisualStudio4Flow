@@ -19,6 +19,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private IconProvider iconProvider;
         private Dictionary<Entry, List<int>> entryHighlightData;
 
+        private const int ScoreIncrement = 10000;
+
         public async Task InitAsync(PluginInitContext context)
         {
             this.context = context;
@@ -58,16 +60,16 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return SingleResult("Could not find vswhere.exe. Please set the path in the plugin settings.", context.API.OpenSettingDialog);
             }
-            
+
             if (!plugin.IsVSInstalled)
             {
                 return SingleResult("No installed version of Visual Studio was found");
             }
 
-            if(query.IsReQuery)
+            if (query.IsReQuery)
             {
                 await plugin.GetRecentEntries(token);
-            }    
+            }
 
             if (!plugin.RecentEntries.Any())
             {
@@ -84,7 +86,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             };
 
             return selectedRecentItems.OrderBy(e => e.Value.LastAccessed)
-                                      .Select(CreateEntryResult)
+                                      .Select((e, i) => CreateEntryResult(e, i * ScoreIncrement))
                                       .ToList();
         }
         public List<Result> LoadContextMenus(Result selectedResult)
@@ -113,7 +115,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     {
                         await plugin.RemoveEntry(currentEntry);
                         await Task.Delay(100);
-                        
+
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
                         return true;
                     }
@@ -149,9 +151,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
             };
         }
-        private Result CreateEntryResult(Entry e)
+        private Result CreateEntryResult(Entry e, int score)
         {
-            string iconPath  = IconProvider.DefaultIcon;
             Action action = () => context.API.ShellRun($"\"{e.Path}\"");
             if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
             {
@@ -170,7 +171,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath =  iconPath,
+                Score = score,
+                IcoPath = IconProvider.DefaultIcon,
                 Action = _ =>
                 {
                     action();
