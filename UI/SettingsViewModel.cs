@@ -25,7 +25,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         public List<VisualStudioModel> VSInstances { get; set; }
         public VisualStudioModel SelectedVSInstance
         {
-            get => selectedVSInstance; 
+            get => selectedVSInstance;
             set
             {
                 selectedVSInstance = value;
@@ -58,7 +58,17 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
         private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
-            VSInstances = new List<VisualStudioModel>(plugin.VSInstances.Select(vs => 
+            VSInstances = new List<VisualStudioModel>()
+            {
+                new VisualStudioModel
+                {
+                    IconPath = iconProvider.Windows,
+                    Name = "Let Windows Decide (Default)",
+                    InstanceId = null,
+                }
+            };
+
+            VSInstances.AddRange(plugin.VSInstances.Select(vs =>
             {
                 return new VisualStudioModel
                 {
@@ -67,13 +77,8 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                     InstanceId = vs.InstanceId,
                 };
             }));
-            VSInstances.Insert(0, new VisualStudioModel
-            {
-                IconPath = iconProvider.Windows,
-                Name = "Let Windows Decide (Default)",
-                InstanceId = null,
-            });
-            SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
+
+            SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId, VSInstances[0]);
         }
         public async Task RefreshInstances()
         {
