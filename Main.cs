@@ -77,18 +77,28 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
             entryHighlightData.Clear();
-            var selectedRecentItems = query.Search switch
+
+            if (string.IsNullOrWhiteSpace(query.Search))
             {
-                string search when string.IsNullOrEmpty(search) => plugin.RecentEntries,
-                string search when search.StartsWith(ProjectsOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, ProjectsOnly)),
-                string search when search.StartsWith(FilesOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, FilesOnly)),
-                _ => plugin.RecentEntries.Where(e => FuzzySearch(e, query.Search))
+                return plugin.RecentEntries.OrderBy(e => e.Value.LastAccessed)
+                                           .Select((e, i) => CreateEntryResult(e, i * ScoreIncrement))
+                                           .ToList();
+            }
+
+            Func<EntryScore, Query, bool> searchFunc = query.Search switch
+            {
+                string search when search.StartsWith(ProjectsOnly.Keyword) => (x, query) => TypeSearch(x, query, ProjectsOnly),
+                string search when search.StartsWith(FilesOnly.Keyword) => (x, query) => TypeSearch(x, query, FilesOnly),
+                _ => (x, query) => FuzzySearch(x, query.Search),
             };
 
-            return selectedRecentItems.OrderBy(e => e.Value.LastAccessed)
-                                      .Select((e, i) => CreateEntryResult(e, i * ScoreIncrement))
-                                      .ToList();
+            return plugin.RecentEntries.Select(x => new EntryScore(x))
+                                       .Where(x => searchFunc(x, query))
+                                       .Select(x => CreateEntryResult(x.Entry, x.Score))
+                                       .ToList();
         }
+
+
         public List<Result> LoadContextMenus(Result selectedResult)
         {
             if (selectedResult.ContextData is Entry currentEntry)
@@ -151,6 +161,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
             };
         }
+
         private Result CreateEntryResult(Entry e, int score)
         {
             Action action = () => context.API.ShellRun($"\"{e.Path}\"");
@@ -181,14 +192,18 @@ namespace Flow.Launcher.Plugin.VisualStudio
             };
         }
 
-        private bool FuzzySearch(Entry entry, string search)
+        private bool FuzzySearch(EntryScore entryScore, string search)
         {
+            var entry = entryScore.Entry;
             var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
             entryHighlightData[entry] = matchResult.MatchData;
-            return matchResult.IsSearchPrecisionScoreMet();
+            entryScore.Score = matchResult.Score;
+            return matchResult.Success;
         }
-        private bool TypeSearch(Entry entry, Query query, TypeKeyword typeKeyword)
+
+        private bool TypeSearch(EntryScore entryScore, Query query, TypeKeyword typeKeyword)
         {
+            var entry = entryScore.Entry;
             var search = query.Search[typeKeyword.Keyword.Length..];
             if (string.IsNullOrWhiteSpace(search))
             {
@@ -196,13 +211,19 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
             else
             {
-                return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
+                return entry.ItemType == typeKeyword.Type && FuzzySearch(entryScore, search);
             }
         }
+
         public System.Windows.Controls.Control CreateSettingPanel()
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }
+
         private record struct TypeKeyword(int Type, string Keyword);
+        private record EntryScore(Entry Entry)
+        {
+            public int Score { get; set; } = 0;
+        }
     }
 }
