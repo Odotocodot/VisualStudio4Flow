@@ -62,6 +62,8 @@ This allows for:
    1. Restore recent items to the current backup
    2. Backup recent items right now
    3. Stop automatically updating the backup
+6. The location of [vswhere.exe](https://github.com/microsoft/vswhere). The default value, set automatically by the plugin is vswhere's default install location. \
+However, in case that this is incorrect you can change it! Though, you will need to reload plugin data (press <kbd>F5</kbd> when the Flow Launcher search window is open) or restart Flow Launcher for the change to take effect.
 
 ## Known Issues
 
