@@ -20,13 +20,12 @@
         <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
             <ItemsControl Style="{StaticResource SettingGrid}">
                 <StackPanel Style="{StaticResource TextPanel}">
-                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Default Open With" />
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Default open with" />
                     <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="Set the default Visual Studio instance to open a search result with." />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <ComboBox
                         Name="ComboBox"
-                        Grid.Column="2"
                         MinWidth="350"
                         Margin="10,4,12,4"
                         d:SelectedIndex="0"
@@ -64,7 +63,7 @@
                 <TextBlock Style="{StaticResource Glyph}" Text="&#xe7ac;" />
             </ItemsControl>
         </Border>
-        <Border CornerRadius="0,0,9,9" Style="{DynamicResource SettingGroupBox}">
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
             <ItemsControl Style="{StaticResource SettingGrid}">
                 <StackPanel Style="{StaticResource TextPanel}">
                     <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Remove recent items from Visual Studio" />
@@ -122,6 +121,18 @@
                     </Button>
                 </StackPanel>
                 <TextBlock Style="{StaticResource Glyph}" Text="&#xe74d;" />
+            </ItemsControl>
+        </Border>
+        <Border CornerRadius="0,0,9,9" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="vswhere.exe path" ToolTip="{Binding DefaultVswherePath}" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="vswhere.exe is used to find your Visual Studio instances." />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBox Margin="0,4,18,4" Text="{Binding VswherePath}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe835;" />
             </ItemsControl>
         </Border>
     </StackPanel>

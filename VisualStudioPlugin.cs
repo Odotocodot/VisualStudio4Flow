@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -20,7 +21,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private readonly IconProvider iconProvider;
         private readonly ConcurrentDictionary<string, Entry> recentEntries = new();
         private readonly ConcurrentBag<VisualStudioInstance> vsInstances = new();
-        private bool doneBackupToday = false;
+        private bool doneBackupToday;
+        private bool validVswherePath;
 
         public static async Task<VisualStudioPlugin> Create(Settings settings, PluginInitContext context, IconProvider iconProvider)
         {
@@ -35,23 +37,43 @@ namespace Flow.Launcher.Plugin.VisualStudio
             this.iconProvider = iconProvider;
         }
 
+        public bool ValidVswherePath => validVswherePath;
         public bool IsVSInstalled => !vsInstances.IsEmpty;
         public IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
         public IEnumerable<VisualStudioInstance> VSInstances => vsInstances;
 
         public async Task GetVisualStudioInstances()
         {
-            using var vswhere = Process.Start(new ProcessStartInfo
+
+            if (!File.Exists(settings.VswherePath))
             {
-                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio\\Installer\\vswhere.exe"),
-                Arguments = "-sort -format json -utf8 -prerelease",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
+                validVswherePath = false;
+                return;
+            }
 
+            validVswherePath = true;
 
-            using var doc = await JsonDocument.ParseAsync(vswhere.StandardOutput.BaseStream);
+            Process vswhere;
+            try
+            {
+                vswhere = Process.Start(new ProcessStartInfo
+                {
+                    FileName = settings.VswherePath,
+                    Arguments = "-sort -format json -utf8 -prerelease",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+
+            }
+            catch (Exception ex) when (ex is Win32Exception || ex is InvalidOperationException)
+            {
+                context.API.LogException(nameof(VisualStudioPlugin), "Failed to start vswhere.exe", ex);
+                validVswherePath = false;
+                return;
+            }
+
+            var doc = await JsonDocument.ParseAsync(vswhere.StandardOutput.BaseStream);
 
             vsInstances.Clear();
 
@@ -60,6 +82,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return;
 
             Parallel.For(0, count, index => vsInstances.Add(new VisualStudioInstance(doc.RootElement[index])));
+
+            doc?.Dispose();
+            vswhere?.Dispose();
 
         }
         public async Task GetRecentEntries(CancellationToken token = default)
@@ -138,14 +163,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
             context.API.ShowMsg("Visual Studio Plugin", $"Restored {recentEntries.Count} entr{(recentEntries.Count != 1 ? "ies" : "y")} from {settings.LastBackup} backup.", iconProvider.Notification);
         }
 
-        public async Task RemoveAllEntries()
-        {
-            await RemoveEntries(false);
-        }
-        public async Task RemoveInvalidEntries()
-        {
-            await RemoveEntries(true);
-        }
+        public async Task RemoveAllEntries() => await RemoveEntries(false);
+
+        public async Task RemoveInvalidEntries() => await RemoveEntries(true);
+
         public async Task RemoveEntry(Entry entryToRemove)
         {
             if (recentEntries.TryRemove(entryToRemove.Key, out _))
@@ -185,7 +206,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 using var memoryStream = new MemoryStream();
 
                 var json = JsonSerializer.SerializeAsync(memoryStream, RecentEntries.ToArray(), cancellationToken: ct);
-                ///Open xml document
+                //Open xml document
                 using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
                 var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, ct);
                 var recent = root.Element("content")
@@ -194,7 +215,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                  .Where(e => (string)e.Attribute("name") == "CodeContainers.Offline")
                                  .First()
                                  .Element("value");
-                ///Make sure Json is serialized
+                //Make sure Json is serialized
                 await json;
 
                 //write new entries to xml value

@@ -25,7 +25,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         public List<VisualStudioModel> VSInstances { get; set; }
         public VisualStudioModel SelectedVSInstance
         {
-            get => selectedVSInstance; 
+            get => selectedVSInstance;
             set
             {
                 selectedVSInstance = value;
@@ -33,6 +33,18 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                 OnPropertyChanged();
             }
         }
+
+        public string VswherePath
+        {
+            get => settings.VswherePath;
+            set
+            {
+                settings.VswherePath = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string DefaultVswherePath => $"Default Path: \"{Settings.DefaultVswherePath}\"";
         public string LastBackup => $"[Last Backup: {settings.LastBackup.ToLocalTime()}]";
         public bool AutoUpdateBackup
         {
@@ -46,7 +58,17 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
         private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
-            VSInstances = new List<VisualStudioModel>(plugin.VSInstances.Select(vs => 
+            VSInstances = new List<VisualStudioModel>()
+            {
+                new VisualStudioModel
+                {
+                    IconPath = iconProvider.Windows,
+                    Name = "Let Windows Decide (Default)",
+                    InstanceId = null,
+                }
+            };
+
+            VSInstances.AddRange(plugin.VSInstances.Select(vs =>
             {
                 return new VisualStudioModel
                 {
@@ -55,13 +77,8 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                     InstanceId = vs.InstanceId,
                 };
             }));
-            VSInstances.Insert(0, new VisualStudioModel
-            {
-                IconPath = iconProvider.Windows,
-                Name = "Let Windows Decide (Default)",
-                InstanceId = null,
-            });
-            SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
+
+            SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId, VSInstances[0]);
         }
         public async Task RefreshInstances()
         {
@@ -75,11 +92,6 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
         public async Task BackupNow() => await Task.Run(plugin.UpdateBackup);
         public void UpdateLastBackupTime() => OnPropertyChanged(nameof(LastBackup));
 
-        public class VisualStudioModel
-        {
-            public string IconPath { get; init; }
-            public string Name { get; init; }
-            public string InstanceId { get; init; }
-        }
+
     }
 }

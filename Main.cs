@@ -9,7 +9,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
     {
-        public PluginInitContext context;
+        private PluginInitContext context;
         private VisualStudioPlugin plugin;
 
         private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
@@ -18,6 +18,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private Settings settings;
         private IconProvider iconProvider;
         private Dictionary<Entry, List<int>> entryHighlightData;
+
+        private const int ScoreIncrement = 10000;
 
         public async Task InitAsync(PluginInitContext context)
         {
@@ -54,15 +56,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return null;
             }
 
+            if (!plugin.ValidVswherePath)
+            {
+                return SingleResult("Could not find vswhere.exe. Please set the path in the plugin settings.", context.API.OpenSettingDialog);
+            }
+
             if (!plugin.IsVSInstalled)
             {
                 return SingleResult("No installed version of Visual Studio was found");
             }
 
-            if(query.IsReQuery)
+            if (query.IsReQuery)
             {
                 await plugin.GetRecentEntries(token);
-            }    
+            }
 
             if (!plugin.RecentEntries.Any())
             {
@@ -70,18 +77,28 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
             entryHighlightData.Clear();
-            var selectedRecentItems = query.Search switch
+
+            if (string.IsNullOrWhiteSpace(query.Search))
             {
-                string search when string.IsNullOrEmpty(search) => plugin.RecentEntries,
-                string search when search.StartsWith(ProjectsOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, ProjectsOnly)),
-                string search when search.StartsWith(FilesOnly.Keyword) => plugin.RecentEntries.Where(e => TypeSearch(e, query, FilesOnly)),
-                _ => plugin.RecentEntries.Where(e => FuzzySearch(e, query.Search))
+                return plugin.RecentEntries.OrderBy(e => e.Value.LastAccessed)
+                                           .Select((e, i) => CreateEntryResult(e, i * ScoreIncrement))
+                                           .ToList();
+            }
+
+            Func<EntryScore, Query, bool> searchFunc = query.Search switch
+            {
+                string search when search.StartsWith(ProjectsOnly.Keyword) => (x, query) => TypeSearch(x, query, ProjectsOnly),
+                string search when search.StartsWith(FilesOnly.Keyword) => (x, query) => TypeSearch(x, query, FilesOnly),
+                _ => (x, query) => FuzzySearch(x, query.Search),
             };
 
-            return selectedRecentItems.OrderBy(e => e.Value.LastAccessed)
-                                      .Select(CreateEntryResult)
-                                      .ToList();
+            return plugin.RecentEntries.Select(x => new EntryScore(x))
+                                       .Where(x => searchFunc(x, query))
+                                       .Select(x => CreateEntryResult(x.Entry, x.Score))
+                                       .ToList();
         }
+
+
         public List<Result> LoadContextMenus(Result selectedResult)
         {
             if (selectedResult.ContextData is Entry currentEntry)
@@ -93,7 +110,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
                         SubTitle = vs.ExePath,
                         IcoPath = iconProvider.GetIconPath(vs),
-                        Action = c =>
+                        Action = _ =>
                         {
                             context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
                             return true;
@@ -104,12 +121,12 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Remove \"{selectedResult.Title}\" from recent items list.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
-                    AsyncAction = async c =>
+                    AsyncAction = async _ =>
                     {
                         await plugin.RemoveEntry(currentEntry);
                         await Task.Delay(100);
-                        
-                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword, false);
+
+                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
                         return true;
                     }
                 }).Append(new Result
@@ -117,7 +134,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Open in File Explorer",
                     SubTitle = currentEntry.Path,
                     IcoPath = IconProvider.Folder,
-                    Action = c =>
+                    Action = _ =>
                     {
                         context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
                         return true;
@@ -128,7 +145,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             return null;
         }
 
-        private static List<Result> SingleResult(string title)
+        private static List<Result> SingleResult(string title, Action action = null)
         {
             return new List<Result>
             {
@@ -136,12 +153,17 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 {
                     Title = title,
                     IcoPath = IconProvider.DefaultIcon,
+                    Action = _ =>
+                    {
+                        action?.Invoke();
+                        return action != null;
+                    }
                 }
             };
         }
-        private Result CreateEntryResult(Entry e)
+
+        private Result CreateEntryResult(Entry e, int score)
         {
-            string iconPath  = IconProvider.DefaultIcon;
             Action action = () => context.API.ShellRun($"\"{e.Path}\"");
             if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
             {
@@ -160,8 +182,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
-                IcoPath =  iconPath,
-                Action = c =>
+                Score = score,
+                IcoPath = IconProvider.DefaultIcon,
+                Action = _ =>
                 {
                     action();
                     return true;
@@ -169,14 +192,18 @@ namespace Flow.Launcher.Plugin.VisualStudio
             };
         }
 
-        private bool FuzzySearch(Entry entry, string search)
+        private bool FuzzySearch(EntryScore entryScore, string search)
         {
+            var entry = entryScore.Entry;
             var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
             entryHighlightData[entry] = matchResult.MatchData;
-            return matchResult.IsSearchPrecisionScoreMet();
+            entryScore.Score = matchResult.Score;
+            return matchResult.Success;
         }
-        private bool TypeSearch(Entry entry, Query query, TypeKeyword typeKeyword)
+
+        private bool TypeSearch(EntryScore entryScore, Query query, TypeKeyword typeKeyword)
         {
+            var entry = entryScore.Entry;
             var search = query.Search[typeKeyword.Keyword.Length..];
             if (string.IsNullOrWhiteSpace(search))
             {
@@ -184,13 +211,19 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
             else
             {
-                return entry.ItemType == typeKeyword.Type && FuzzySearch(entry, search);
+                return entry.ItemType == typeKeyword.Type && FuzzySearch(entryScore, search);
             }
         }
+
         public System.Windows.Controls.Control CreateSettingPanel()
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }
-        public record struct TypeKeyword(int Type, string Keyword);
+
+        private record struct TypeKeyword(int Type, string Keyword);
+        private record EntryScore(Entry Entry)
+        {
+            public int Score { get; set; } = 0;
+        }
     }
 }
