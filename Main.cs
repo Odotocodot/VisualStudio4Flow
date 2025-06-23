@@ -79,7 +79,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (string.IsNullOrWhiteSpace(query.Search))
             {
                 return plugin.RecentEntries.OrderBy(e => e.Value.LastAccessed)
-                                           .Select(CreateEntryResult)
+                                           .Select((e, i) => CreateEntryResult(e, i, false))
                                            .ToList();
             }
 
@@ -92,7 +92,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             return plugin.RecentEntries.Select(x => new EntryScore(x))
                                        .Where(x => searchFunc(x, query))
-                                       .Select(x => CreateEntryResult(x.Entry, x.Score))
+                                       .Select(x => CreateEntryResult(x.Entry, x.Score, true))
                                        .ToList();
         }
 
@@ -166,7 +166,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             };
         }
 
-        private Result CreateEntryResult(Entry e, int score)
+        private Result CreateEntryResult(Entry e, int score, bool addSelectedScore)
         {
             Action action = () => context.API.ShellRun($"\"{e.Path}\"");
             if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
@@ -187,7 +187,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
                 Score = score,
-                AddSelectedCount = false,
+                AddSelectedCount = addSelectedScore,
                 IcoPath = IconProvider.DefaultIcon,
                 Action = _ =>
                 {
