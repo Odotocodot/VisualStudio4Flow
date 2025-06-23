@@ -19,8 +19,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private IconProvider iconProvider;
         private Dictionary<Entry, List<int>> entryHighlightData;
 
-        private const int ScoreIncrement = 10000;
-
         public async Task InitAsync(PluginInitContext context)
         {
             this.context = context;
@@ -81,7 +79,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             if (string.IsNullOrWhiteSpace(query.Search))
             {
                 return plugin.RecentEntries.OrderBy(e => e.Value.LastAccessed)
-                                           .Select((e, i) => CreateEntryResult(e, i * ScoreIncrement))
+                                           .Select(CreateEntryResult)
                                            .ToList();
             }
 
@@ -110,6 +108,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
                         Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
                         SubTitle = vs.ExePath,
                         IcoPath = iconProvider.GetIconPath(vs),
+                        Score = 2,
+                        AddSelectedCount = false,
                         Action = _ =>
                         {
                             context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
@@ -121,6 +121,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Remove \"{selectedResult.Title}\" from recent items list.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
+                    Score = 1,
+                    AddSelectedCount = false,
                     AsyncAction = async _ =>
                     {
                         await plugin.RemoveEntry(currentEntry);
@@ -134,6 +136,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     Title = $"Open in File Explorer",
                     SubTitle = currentEntry.Path,
                     IcoPath = IconProvider.Folder,
+                    Score = 0,
+                    AddSelectedCount = false,
                     Action = _ =>
                     {
                         context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
@@ -183,6 +187,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
                 ContextData = e,
                 Score = score,
+                AddSelectedCount = false,
                 IcoPath = IconProvider.DefaultIcon,
                 Action = _ =>
                 {
