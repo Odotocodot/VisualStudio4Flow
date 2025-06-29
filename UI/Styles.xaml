@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:componentModel="clr-namespace:System.ComponentModel;assembly=PresentationFramework">
     <!--
-        To make the view match Flow Launcher the styles have been yoinked (replicated) from the repository. (https://github.com/Flow-Launcher/Flow.Launcher/blob/dev/Flow.Launcher/SettingWindow.xaml)
+        To make the view match Flow Launcher the styles have been yoinked (replicated) from the repository, with changes by Odotocodot. (https://github.com/Flow-Launcher/Flow.Launcher/blob/dev/Flow.Launcher/SettingWindow.xaml
         The MIT License (MIT)
         
         Copyright (c) 2019 Flow-Launcher
