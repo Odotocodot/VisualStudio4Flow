@@ -18,7 +18,7 @@ pm install Visual Studio Launcher
 ```
 in Flow Launcher.
 > [!IMPORTANT]
-> Requires at least Flow Launcher version 1.16.
+> Requires at least Flow Launcher version 1.20.
 
 ## Features
 ### Searching
