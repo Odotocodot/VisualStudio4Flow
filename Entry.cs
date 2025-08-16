@@ -3,13 +3,18 @@ using System.Text.Json.Serialization;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
-    //For Json deserialization.
+    //For Json deserialization. Represent a recent item entry in visual studio
     public class Entry 
     {
         public string Key { get; init; }
         public Value Value { get; init; }
 
-        //NonJson
+        //Non Json
+        //Move to own type EntryResult, keep this as a pure DTO 
+        [JsonIgnore]
+        public string GitBranch { get; set; }
+        [JsonIgnore]
+        public bool HasGit => GitBranch != null;
         [JsonIgnore]
         public string Path => Value.LocalProperties.FullPath;
         [JsonIgnore]

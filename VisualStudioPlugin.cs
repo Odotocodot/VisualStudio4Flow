@@ -92,9 +92,13 @@ namespace Flow.Launcher.Plugin.VisualStudio
             var newestVS = VSInstances.MaxBy(vs => File.GetLastWriteTimeUtc(vs.RecentItemsPath));
             recentEntries.Clear();
 
-            var entries = await GetRecentEntriesFromInstance(newestVS, token);
+            Entry[] entries = await GetRecentEntriesFromInstance(newestVS, token);
 
-            Parallel.ForEach(entries, entry => recentEntries.TryAdd(entry.Key, entry));
+            await Parallel.ForEachAsync(entries, token, async (entry, ct) =>
+            {
+                recentEntries.TryAdd(entry.Key, entry);
+                entry.GitBranch = await GetGitBranch(Path.GetDirectoryName(entry.Path), ct);
+            });
 
             if (settings.AutoUpdateBackup
                 && !doneBackupToday
@@ -148,7 +152,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return Array.Empty<Entry>();
             }
-
+        }
+        
+        private static async Task<string> GetGitBranch(string path,CancellationToken token)
+        {
+            string headFile = Path.Combine(path, ".git", "HEAD");
+            if (!Path.Exists(headFile))
+            {
+                return null;
+            }
+            //Example HEAD file:
+            //ref: refs/heads/main
+            //01235678901234567890
+            string data = await File.ReadAllTextAsync(path, token);
+            return data[17..];
         }
 
         public async Task RevertToBackup()
@@ -176,6 +193,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
 
         }
+        
         private async Task RemoveEntries(bool missingOnly)
         {
             IEnumerable<Entry> entriesToRemove = recentEntries.Values;

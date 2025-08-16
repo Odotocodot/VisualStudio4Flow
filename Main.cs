@@ -166,26 +166,32 @@ namespace Flow.Launcher.Plugin.VisualStudio
             };
         }
 
-        private Result CreateEntryResult(Entry e, int score, bool addSelectedScore)
+
+        private Result CreateEntryResult(Entry entry, int score, bool addSelectedScore)
         {
-            Action action = () => context.API.ShellRun($"\"{e.Path}\"");
+            Action action = () => context.API.ShellRun($"\"{entry.Path}\"");
             if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
             {
                 var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
                 if (instance != null)
                 {
                     //iconPath = iconProvider.GetIconPath(instance);
-                    action = () => context.API.ShellRun($"\"{e.Path}\"", $"\"{instance.ExePath}\"");
+                    action = () => context.API.ShellRun($"\"{entry.Path}\"", $"\"{instance.ExePath}\"");
                 }
             }
-            entryHighlightData.TryGetValue(e, out var highlightData);
+            entryHighlightData.TryGetValue(entry, out var highlightData);
+            string title = Path.GetFileNameWithoutExtension(entry.Path);
+            if (entry.HasGit)
+            {
+                title += "\t \u2191\u21B1\u21BE " + entry.GitBranch;
+            }
             return new Result
             {
-                Title = Path.GetFileNameWithoutExtension(e.Path),
+                Title = title,
                 TitleHighlightData = highlightData,
-                SubTitle = e.Value.IsFavorite ? $"★  {e.Path}" : e.Path,
-                SubTitleToolTip = $"{e.Path}\n\nLast Accessed:\t{e.Value.LastAccessed:F}",
-                ContextData = e,
+                SubTitle = entry.Value.IsFavorite ? $"★  {entry.Path}" : entry.Path,
+                SubTitleToolTip = $"{entry.Path}\n\nLast Accessed:\t{entry.Value.LastAccessed:F}",
+                ContextData = entry,
                 Score = score,
                 AddSelectedCount = addSelectedScore,
                 IcoPath = IconProvider.DefaultIcon,
