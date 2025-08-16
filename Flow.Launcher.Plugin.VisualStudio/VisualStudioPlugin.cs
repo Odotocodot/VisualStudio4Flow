@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Flow.Launcher.Plugin.VisualStudio.Models;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {

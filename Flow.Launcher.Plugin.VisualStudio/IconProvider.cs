@@ -1,28 +1,32 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using Flow.Launcher.Plugin.VisualStudio.Models;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class IconProvider
     {
         public const string DefaultIcon = ImageFolderName + "\\icon.png";
-        public const string Remove = ImageFolderName +"\\delete.png";
-        public const string Folder = ImageFolderName +"\\folder.png";
+        public const string Remove = ImageFolderName + "\\delete.png";
+        public const string Folder = ImageFolderName + "\\folder.png";
 
         private const string ImageFolderName = "Images";
         private const string VSIconsFolderName = "VSIcons";
 
         private readonly ConcurrentDictionary<string, string> vsIcons;
         private readonly string vsIconsDirectoryPath;
+        private readonly PluginInitContext context;
 
         public string Windows { get; init; }
         public string Notification { get; init; }
-        
+
 
         public IconProvider(PluginInitContext context)
         {
+            this.context = context;
             vsIcons = new ConcurrentDictionary<string, string>();
 
             Windows = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, "windows.png");
@@ -60,8 +64,9 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     bitmap.Save(fileStream, ImageFormat.Png);
                     vsIcons.TryAdd(vs.InstanceId, iconPath);
                 }
-                catch (System.Exception)
+                catch (Exception e)
                 {
+                    context.API.LogException(typeof(IconProvider).FullName, $"Failed at creating an icon for \"{vs.DisplayName}\"", e);
                     iconPath = DefaultIcon;
                 }
             }

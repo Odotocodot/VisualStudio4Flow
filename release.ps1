@@ -2,7 +2,7 @@
 #Compress-Archive -LiteralPath Flow.Launcher.Plugin.VisualStudio/bin/Release/win-x64/publish -DestinationPath Flow.Launcher.Plugin.VisualStudio/bin/VisualStudio.zip -Force
 
 
-$PluginJson = Get-Content .\plugin.json -Raw | ConvertFrom-Json
+$PluginJson = Get-Content .\Flow.Launcher.Plugin.VisualStudio\plugin.json -Raw | ConvertFrom-Json
 
 $Name = $PluginJson.Name 
 $Version = $PluginJson.Version
@@ -22,7 +22,7 @@ while($confirmation -ne "y")
 
 $FullName = $Name + "-" + $Version
 
-dotnet publish -c Release -r win-x64 --no-self-contained -o .\bin\Release\$FullName
+dotnet publish -c Release -r win-x64 --no-self-contained -o .\Flow.Launcher.Plugin.VisualStudio\bin\Release\$FullName
 #Compress-Archive -LiteralPath .\bin\Release\$FullName -DestinationPath .\bin\"$FullName.zip" -Force
 
 Do {
@@ -38,7 +38,7 @@ foreach ($Folder in $Folders) {
     Remove-Item -Recurse $env:APPDATA\FlowLauncher\Plugins\$Folder\ -Force -ErrorAction Stop
 }
 
-Copy-Item -Recurse -LiteralPath ./bin/Release/$FullName $env:APPDATA\FlowLauncher\Plugins\ -Force
+Copy-Item -Recurse -LiteralPath ./Flow.Launcher.Plugin.VisualStudio/bin/Release/$FullName $env:APPDATA\FlowLauncher\Plugins\ -Force
 $Flow = Start-Process $env:LOCALAPPDATA\FlowLauncher\Flow.Launcher.exe -PassThru
 
 #Do {} While ($Flow.WaitForInputIdle(5000) -ne $true)

@@ -1,12 +1,14 @@
 ﻿using System;
 using System.IO;
 
-namespace Flow.Launcher.Plugin.VisualStudio
+namespace Flow.Launcher.Plugin.VisualStudio.Models
 {
     public class Settings
     {
-        //If null let windows decide;
-        public string DefaultVSId { get; set; }
+        #nullable enable
+        //If null let windows decide which Visual Studio to use.
+        public string? DefaultVSId { get; set; }
+        #nullable restore
         public bool AutoUpdateBackup { get; set; } = true;
         public DateTime LastBackup { get; set; } = DateTime.MinValue;
         public Entry[] EntriesBackup { get; set; }

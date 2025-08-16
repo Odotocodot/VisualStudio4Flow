@@ -3,7 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Flow.Launcher.Plugin.VisualStudio", "Flow.Launcher.Plugin.VisualStudio.csproj", "{743273E6-3AFE-4C48-848C-A242C5B80BB0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Flow.Launcher.Plugin.VisualStudio", "Flow.Launcher.Plugin.VisualStudio\Flow.Launcher.Plugin.VisualStudio.csproj", "{743273E6-3AFE-4C48-848C-A242C5B80BB0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{EE3B0F4E-2D98-4477-B521-3A69E6951410}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		data.json = data.json
+		LICENSE.txt = LICENSE.txt
+		Readme.md = Readme.md
+		release.ps1 = release.ps1
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

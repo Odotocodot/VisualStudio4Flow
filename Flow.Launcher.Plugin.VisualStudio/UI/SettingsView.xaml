@@ -33,7 +33,7 @@
                         ItemsSource="{Binding VSInstances}"
                         SelectedItem="{Binding SelectedVSInstance}">
                         <ComboBox.ItemTemplate>
-                            <DataTemplate DataType="vm:VisualStudioModel">
+                            <DataTemplate DataType="vm:VisualStudioViewModel">
                                 <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
                                     <Image
                                         Width="24"

@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace Flow.Launcher.Plugin.VisualStudio
+namespace Flow.Launcher.Plugin.VisualStudio.Models
 {
     public class VisualStudioInstance
     {
