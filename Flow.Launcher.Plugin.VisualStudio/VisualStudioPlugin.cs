@@ -20,7 +20,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private readonly PluginInitContext context;
         private readonly Settings settings;
         private readonly IconProvider iconProvider;
-        private readonly ConcurrentDictionary<string, Entry> recentEntries = new();
+        private readonly ConcurrentDictionary<string, EntryResult> recentEntries = new();
         private readonly ConcurrentBag<VisualStudioInstance> vsInstances = new();
         private bool doneBackupToday;
         private bool validVswherePath;
@@ -38,10 +38,11 @@ namespace Flow.Launcher.Plugin.VisualStudio
             this.iconProvider = iconProvider;
         }
 
+        private IEnumerable<Entry> Entries => recentEntries.Select(x => x.Value.Entry);
+        public IEnumerable<EntryResult> EntryResults => recentEntries.Select(x => x.Value);
+        public IEnumerable<VisualStudioInstance> VSInstances => vsInstances;
         public bool ValidVswherePath => validVswherePath;
         public bool IsVSInstalled => !vsInstances.IsEmpty;
-        public IEnumerable<Entry> RecentEntries => recentEntries.Select(kvp => kvp.Value);
-        public IEnumerable<VisualStudioInstance> VSInstances => vsInstances;
 
         public async Task GetVisualStudioInstances()
         {
@@ -83,23 +84,20 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 return;
 
             Parallel.For(0, count, index => vsInstances.Add(new VisualStudioInstance(doc.RootElement[index])));
-
+            
             doc?.Dispose();
             vswhere?.Dispose();
 
         }
+        
         public async Task GetRecentEntries(CancellationToken token = default)
         {
             var newestVS = VSInstances.MaxBy(vs => File.GetLastWriteTimeUtc(vs.RecentItemsPath));
             recentEntries.Clear();
 
             Entry[] entries = await GetRecentEntriesFromInstance(newestVS, token);
-
-            await Parallel.ForEachAsync(entries, token, async (entry, ct) =>
-            {
-                recentEntries.TryAdd(entry.Key, entry);
-                entry.GitBranch = await GetGitBranch(Path.GetDirectoryName(entry.Path), ct);
-            });
+            
+            await GetEntryResults(entries, token);
 
             if (settings.AutoUpdateBackup
                 && !doneBackupToday
@@ -110,17 +108,38 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
         }
 
+        //TODO: test speed
+        private async Task GetEntryResults(Entry[] entries, CancellationToken token = default)
+        {
+            await Parallel.ForEachAsync(entries, token, async (entry, ct) =>
+            {
+                EntryResult entryResult = recentEntries.GetOrAdd(entry.Key, static (_, e) => new EntryResult { Entry = e }, entry);
+                // if (settings.DisplayGitBranch) //TODO: 
+                // {
+                //     
+                // }
+                entryResult.Entry = entry;
+                var path = entryResult.EntryType switch
+                {
+                    EntryType.ProjectOrSolution => Path.GetDirectoryName(entryResult.Path),
+                    EntryType.FileOrFolder => entryResult.Path,
+                    _ => string.Empty,
+                };
+                entryResult.GitBranch = await GetGitBranch(path, ct);
+            });
+        }
+
         public void UpdateBackup()
         {
             settings.LastBackup = DateTime.UtcNow;
-            settings.EntriesBackup = RecentEntries.ToArray();
+            settings.EntriesBackup = Entries.ToArray();
             context.API.SaveSettingJsonStorage<Settings>();
         }
 
         private static async Task<Entry[]> GetRecentEntriesFromInstance(VisualStudioInstance vs, CancellationToken cancellationToken = default)
         {
-            using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.Read);
-            using var reader = XmlReader.Create(fileStream, new XmlReaderSettings() { Async = true });
+            await using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.Read);
+            using var reader = XmlReader.Create(fileStream, new XmlReaderSettings { Async = true });
             await reader.MoveToContentAsync();
 
             var correctElement = false;
@@ -155,28 +174,38 @@ namespace Flow.Launcher.Plugin.VisualStudio
             }
         }
         
-        private static async Task<string> GetGitBranch(string path,CancellationToken token)
+        private static async Task<string> GetGitBranch(string path, CancellationToken token)
         {
-            string headFile = Path.Combine(path, ".git", "HEAD");
-            if (!Path.Exists(headFile))
+            if (string.IsNullOrWhiteSpace(path) || !Path.Exists(Path.Combine(path, ".git")))
             {
-                return null;
+                return EntryResult.NoGit;
             }
-            //Example HEAD file:
-            //ref: refs/heads/main
-            //01235678901234567890
-            string data = await File.ReadAllTextAsync(path, token);
-            return data[17..];
+
+            try
+            {
+                using Process process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = "rev-parse --abbrev-ref HEAD",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = path,
+                    RedirectStandardOutput = true,
+                    
+                });
+                string branch = await process.StandardOutput.ReadToEndAsync(token);
+                return string.IsNullOrWhiteSpace(branch) ? EntryResult.NoGit : branch.TrimEnd();
+            }
+            catch (Win32Exception)
+            {
+                return EntryResult.NoGit;
+            }
         }
 
         public async Task RevertToBackup()
         {
             recentEntries.Clear();
-            foreach (var entry in settings.EntriesBackup)
-            {
-                recentEntries.TryAdd(entry.Key, entry);
-            }
-
+            await GetEntryResults(settings.EntriesBackup);
             await UpdateVisualStudioInstances();
             context.API.ShowMsg("Visual Studio Plugin", $"Restored {recentEntries.Count} entr{(recentEntries.Count != 1 ? "ies" : "y")} from {settings.LastBackup} backup.", iconProvider.Notification);
         }
@@ -185,28 +214,28 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public async Task RemoveInvalidEntries() => await RemoveEntries(true);
 
-        public async Task RemoveEntry(Entry entryToRemove)
+        public async Task RemoveEntry(EntryResult entryToRemove)
         {
-            if (recentEntries.TryRemove(entryToRemove.Key, out _))
+            if (recentEntries.TryRemove(entryToRemove.Id, out _))
             {
                 await UpdateVisualStudioInstances();
-                context.API.ShowMsg($"Visual Studio Plugin", $"Removed \"{entryToRemove.Key}\" from the recent items list", iconProvider.Notification);
+                context.API.ShowMsg($"Visual Studio Plugin", $"Removed \"{entryToRemove.Id}\" from the recent items list", iconProvider.Notification);
             }
 
         }
         
         private async Task RemoveEntries(bool missingOnly)
         {
-            IEnumerable<Entry> entriesToRemove = recentEntries.Values;
+            IEnumerable<EntryResult> entriesToRemove = recentEntries.Values; //In moment snapshot
             if (missingOnly)
             {
-                entriesToRemove = entriesToRemove.Where(entry => !File.Exists(entry.Path) && !Directory.Exists(entry.Path));
+                entriesToRemove = entriesToRemove.Where(entryResult => !Path.Exists(entryResult.Path));
             }
 
             bool removed = false;
-            foreach (var entry in entriesToRemove)
+            foreach (var entryResult in entriesToRemove)
             {
-                removed |= recentEntries.TryRemove(entry.Key, out _);
+                removed |= recentEntries.TryRemove(entryResult.Id, out _);
             }
 
             if (removed)
@@ -224,7 +253,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 using var memoryStream = new MemoryStream();
 
-                var json = JsonSerializer.SerializeAsync(memoryStream, RecentEntries.ToArray(), cancellationToken: ct);
+                var json = JsonSerializer.SerializeAsync(memoryStream, Entries.ToArray(), cancellationToken: ct);
+                
                 //Open xml document
                 using var fileStream = new FileStream(vs.RecentItemsPath, FileMode.Open, FileAccess.ReadWrite);
                 var root = await XDocument.LoadAsync(fileStream, LoadOptions.None, ct);

@@ -4,21 +4,20 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using Flow.Launcher.Plugin.VisualStudio.Models;
 
 namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class Main : IAsyncPlugin, IContextMenu, ISettingProvider, IAsyncReloadable
     {
+        private const string ProjectSearch = "p:";
+        private const string FileSearch = "f:";
+        
         private PluginInitContext context;
         private VisualStudioPlugin plugin;
-
-        private static readonly TypeKeyword ProjectsOnly = new(0, "p:");
-        private static readonly TypeKeyword FilesOnly = new(1, "f:");
-
         private Settings settings;
         private IconProvider iconProvider;
-        private Dictionary<Entry, List<int>> entryHighlightData;
 
         public async Task InitAsync(PluginInitContext context)
         {
@@ -28,7 +27,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             iconProvider = new IconProvider(context);
             plugin = await VisualStudioPlugin.Create(settings, context, iconProvider);
-            entryHighlightData = new Dictionary<Entry, List<int>>();
         }
 
         private void OnVisibilityChanged(object sender, VisibilityChangedEventArgs args)
@@ -70,84 +68,111 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 await plugin.GetRecentEntries(token);
             }
 
-            if (!plugin.RecentEntries.Any())
+            if (!plugin.EntryResults.Any())
             {
                 return SingleResult("No recent items found");
             }
 
-            entryHighlightData.Clear();
 
-            if (string.IsNullOrWhiteSpace(query.Search))
+            Func<EntryResult, bool> filter;
+            string search;
+            switch (query.Search)
             {
-                return plugin.RecentEntries.OrderBy(e => e.Value.LastAccessed)
-                                           .Select((e, i) => CreateEntryResult(e, i, false))
-                                           .ToList();
+                case { } s when s.StartsWith(ProjectSearch, StringComparison.OrdinalIgnoreCase):
+                    filter = static entryResult => entryResult.EntryType == EntryType.ProjectOrSolution;
+                    search = query.Search[ProjectSearch.Length..];
+                    break;
+                case { } s when s.StartsWith(FileSearch, StringComparison.OrdinalIgnoreCase):
+                    filter = static entryResult => entryResult.EntryType == EntryType.FileOrFolder;
+                    search = query.Search[FileSearch.Length..];
+                    break;
+                default:
+                    filter = static _ => true;
+                    search = query.Search;
+                    break;
             }
 
-            Func<EntryScore, Query, bool> searchFunc = query.Search switch
+            if (string.IsNullOrWhiteSpace(search))
             {
-                string search when search.StartsWith(ProjectsOnly.Keyword) => (x, query) => TypeSearch(x, query, ProjectsOnly),
-                string search when search.StartsWith(FilesOnly.Keyword) => (x, query) => TypeSearch(x, query, FilesOnly),
-                _ => (x, query) => FuzzySearch(x, query.Search),
-            };
-
-            return plugin.RecentEntries.Select(x => new EntryScore(x))
-                                       .Where(x => searchFunc(x, query))
-                                       .Select(x => CreateEntryResult(x.Entry, x.Score, true))
-                                       .ToList();
+                return plugin.EntryResults//.OrderBy(e => e.IsFavorite).ThenBy
+                                          .OrderBy(e => e.LastAccessed)
+                                          .Where(e => filter(e)) 
+                                          .Select((e,i) => EntryResultToResult(e, false, i, null))
+                                          .ToList();
+            }
+            
+            
+            return plugin.EntryResults.Select(x => new QueryData(x))
+                                      .Where(q => filter(q.EntryResult) && FuzzySearch(q, search))
+                                      .Select(q => EntryResultToResult(q.EntryResult, true, q.Score, q.HighlightData))
+                                      .ToList();
         }
 
+        private bool FuzzySearch(QueryData data, string search)
+        {
+            var matchResult = context.API.FuzzySearch(search, Path.GetFileName(data.EntryResult.Path));
+            data.Score = matchResult.Score;
+            data.HighlightData = matchResult.MatchData;
+            return matchResult.Success;
+        }
 
         public List<Result> LoadContextMenus(Result selectedResult)
         {
-            if (selectedResult.ContextData is Entry currentEntry)
+            if (selectedResult.ContextData is not ContextData contextData)
+                return null;
+            
+            List<Result> results = new()
             {
-                return plugin.VSInstances.Select(vs =>
+                new Result
                 {
-                    return new Result
-                    {
-                        Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
-                        SubTitle = vs.ExePath,
-                        IcoPath = iconProvider.GetIconPath(vs),
-                        Score = 2,
-                        AddSelectedCount = false,
-                        Action = _ =>
-                        {
-                            context.API.ShellRun($"\"{currentEntry.Path}\"", $"\"{vs.ExePath}\"");
-                            return true;
-                        }
-                    };
-                }).Append(new Result
-                {
-                    Title = $"Remove \"{selectedResult.Title}\" from recent items list.",
+                    Title = $"Remove \"{contextData.Title}\" from recent items list.",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
                     Score = 1,
                     AddSelectedCount = false,
                     AsyncAction = async _ =>
                     {
-                        await plugin.RemoveEntry(currentEntry);
+                        await plugin.RemoveEntry(contextData.EntryResult);
                         await Task.Delay(100);
 
                         context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
                         return true;
                     }
-                }).Append(new Result
-                {
-                    Title = $"Open in File Explorer",
-                    SubTitle = currentEntry.Path,
-                    IcoPath = IconProvider.Folder,
-                    Score = 0,
-                    AddSelectedCount = false,
-                    Action = _ =>
-                    {
-                        context.API.OpenDirectory(Path.GetDirectoryName(currentEntry.Path), currentEntry.Path);
-                        return true;
-                    }
-                })
-                .ToList();
+                }
+            };
+                
+            if (!contextData.ValidPath)
+            {
+                return results;
             }
-            return null;
+                
+            results.InsertRange(0, plugin.VSInstances.Select(vs => new Result
+            {
+                Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
+                SubTitle = vs.ExePath,
+                IcoPath = iconProvider.GetIconPath(vs),
+                Score = 2,
+                AddSelectedCount = false,
+                Action = _ =>
+                {
+                    context.API.ShellRun($"\"{contextData.EntryResult.Path}\"", $"\"{vs.ExePath}\"");
+                    return true;
+                }
+            }));
+            results.Add(new Result
+            {
+                Title = "Open in File Explorer",
+                SubTitle = contextData.EntryResult.Path,
+                IcoPath = IconProvider.Folder,
+                Score = 0,
+                AddSelectedCount = false,
+                Action = _ =>
+                {
+                    context.API.OpenDirectory(Path.GetDirectoryName(contextData.EntryResult.Path), contextData.EntryResult.Path);
+                    return true;
+                }
+            });
+            return results;
         }
 
         private static List<Result> SingleResult(string title, Action action = null)
@@ -166,76 +191,90 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 }
             };
         }
-
-
-        private Result CreateEntryResult(Entry entry, int score, bool addSelectedScore)
+        
+        private Result EntryResultToResult(EntryResult entryResult, bool addSelectedScore, int score, List<int> highlightData)
         {
-            Action action = () => context.API.ShellRun($"\"{entry.Path}\"");
-            if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
+            string title;//NOTE: Move to EntryResult?
+            bool validPath = true;
+            if (Directory.Exists(entryResult.Path))
             {
-                var instance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
-                if (instance != null)
-                {
-                    //iconPath = iconProvider.GetIconPath(instance);
-                    action = () => context.API.ShellRun($"\"{entry.Path}\"", $"\"{instance.ExePath}\"");
-                }
+                title = Path.GetFileName(entryResult.Path);
             }
-            entryHighlightData.TryGetValue(entry, out var highlightData);
-            string title = Path.GetFileNameWithoutExtension(entry.Path);
-            if (entry.HasGit)
+            else if (File.Exists(entryResult.Path))
             {
-                title += "\t \u2191\u21B1\u21BE " + entry.GitBranch;
+                title = Path.GetFileNameWithoutExtension(entryResult.Path);
             }
+            else //Invalid path
+            {
+                title = Path.GetFileName(entryResult.Path);
+                validPath = false;
+            }
+
+            string titleToolTip = title;
+            if (entryResult.HasGit)
+            {
+                title += $"  |  {entryResult.GitBranch}"; //Could use ⇈ or ↱ or↑
+                titleToolTip += $"\n\nBranch: {entryResult.GitBranch}";
+            }
+
             return new Result
             {
                 Title = title,
                 TitleHighlightData = highlightData,
-                SubTitle = entry.Value.IsFavorite ? $"★  {entry.Path}" : entry.Path,
-                SubTitleToolTip = $"{entry.Path}\n\nLast Accessed:\t{entry.Value.LastAccessed:F}",
-                ContextData = entry,
+                TitleToolTip = titleToolTip,
+                SubTitle = entryResult.IsFavorite ? $"★  {entryResult.Path}" : entryResult.Path,
+                SubTitleToolTip = $"{entryResult.Path}\n\nLast Accessed:\t{entryResult.LastAccessed:F}",
+                ContextData = new ContextData(entryResult, title, validPath),
                 Score = score,
                 AddSelectedCount = addSelectedScore,
-                IcoPath = IconProvider.DefaultIcon,
-                Action = _ =>
+                IcoPath = IconProvider.DefaultIcon, //TODO: add icons if favorite and/or is (git or invalid)
+                AsyncAction = async _ =>
                 {
-                    action();
+                    if (!validPath)
+                    {
+                        MessageBoxResult result = context.API.ShowMsgBox(
+                            $"\"{title}\" does not exist. Do you want to remove it from your recent items in Visual Studio?", 
+                            "Invalid Entry",
+                            MessageBoxButton.YesNo, 
+                            MessageBoxImage.Warning, 
+                            MessageBoxResult.Yes);
+                        
+                        if (result == MessageBoxResult.Yes)
+                        {
+                            await plugin.RemoveEntry(entryResult);
+                        }
+                        return true;
+                    }
+                    
+                    if (!string.IsNullOrWhiteSpace(settings.DefaultVSId))
+                    {
+                        VisualStudioInstance vsInstance = plugin.VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId);
+                        if (vsInstance != null)
+                        {
+                            //iconPath = iconProvider.GetIconPath(instance);
+                            context.API.ShellRun($"\"{entryResult.Path}\"", $"\"{vsInstance.ExePath}\"");
+                            return true;
+                        }
+                    }
+
+                    context.API.ShellRun($"\"{entryResult.Path}\"");
                     return true;
                 }
             };
         }
-
-        private bool FuzzySearch(EntryScore entryScore, string search)
-        {
-            var entry = entryScore.Entry;
-            var matchResult = context.API.FuzzySearch(search, Path.GetFileNameWithoutExtension(entry.Path));
-            entryHighlightData[entry] = matchResult.MatchData;
-            entryScore.Score = matchResult.Score;
-            return matchResult.Success;
-        }
-
-        private bool TypeSearch(EntryScore entryScore, Query query, TypeKeyword typeKeyword)
-        {
-            var entry = entryScore.Entry;
-            var search = query.Search[typeKeyword.Keyword.Length..];
-            if (string.IsNullOrWhiteSpace(search))
-            {
-                return entry.ItemType == typeKeyword.Type;
-            }
-            else
-            {
-                return entry.ItemType == typeKeyword.Type && FuzzySearch(entryScore, search);
-            }
-        }
-
+        
         public System.Windows.Controls.Control CreateSettingPanel()
         {
             return new UI.SettingsView(new UI.SettingsViewModel(settings, plugin, iconProvider, this));
         }
 
-        private record struct TypeKeyword(int Type, string Keyword);
-        private record EntryScore(Entry Entry)
+        private record QueryData(EntryResult EntryResult)
         {
-            public int Score { get; set; } = 0;
+            public int Score { get; set; }
+            public List<int> HighlightData { get; set; }
         }
+
+        private record ContextData(EntryResult EntryResult, string Title, bool ValidPath);
+
     }
 }
