@@ -151,18 +151,17 @@ namespace Flow.Launcher.Plugin.VisualStudio
             await Parallel.ForEachAsync(entries, token, async (entry, ct) =>
             {
                 EntryResult entryResult = recentEntries.GetOrAdd(entry.Key, static (_, e) => new EntryResult { Entry = e }, entry);
-                // if (settings.DisplayGitBranch) //TODO: 
-                // {
-                //     
-                // }
                 entryResult.Entry = entry;
-                var path = entryResult.EntryType switch
+                if (settings.DisplayGitBranch) 
                 {
-                    EntryType.ProjectOrSolution => Path.GetDirectoryName(entryResult.Path),
-                    EntryType.FileOrFolder => entryResult.Path,
-                    _ => string.Empty,
-                };
-                entryResult.GitBranch = await GetGitBranch(path, ct);
+                    var path = entryResult.EntryType switch
+                    {
+                        EntryType.ProjectOrSolution => Path.GetDirectoryName(entryResult.Path),
+                        EntryType.FileOrFolder => entryResult.Path,
+                        _ => string.Empty,
+                    };
+                    entryResult.GitBranch = await GetGitBranch(path, ct);
+                }
             });
         }
 

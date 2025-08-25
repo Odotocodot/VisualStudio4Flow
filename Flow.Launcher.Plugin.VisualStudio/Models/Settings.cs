@@ -13,7 +13,8 @@ namespace Flow.Launcher.Plugin.VisualStudio.Models
         public DateTime LastBackup { get; set; } = DateTime.MinValue;
         public Entry[] EntriesBackup { get; set; }
         public string VswherePath { get; set; } = DefaultVswherePath;
-        
+        public bool DisplayGitBranch { get; set; }
+
         public static string DefaultVswherePath { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), 
             "Microsoft Visual Studio\\Installer\\vswhere.exe");
     }

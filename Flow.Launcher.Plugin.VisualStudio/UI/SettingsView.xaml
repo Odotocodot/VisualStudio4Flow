@@ -124,6 +124,21 @@
                 <TextBlock Style="{StaticResource Glyph}" Text="&#xe74d;" />
             </ItemsControl>
         </Border>
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Display Git branch on results" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="Requires Git to be on the PATH environment variable" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <CheckBox
+                        Margin="0,4,18,4"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding DisplayGitBranch}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe774;" /> <!-- Could use  EAC2 F259 ¯\_('v')_/¯  -->
+            </ItemsControl>
+        </Border>
         <Border CornerRadius="0,0,9,9" Style="{DynamicResource SettingGroupBox}">
             <ItemsControl Style="{StaticResource SettingGrid}">
                 <StackPanel Style="{StaticResource TextPanel}">

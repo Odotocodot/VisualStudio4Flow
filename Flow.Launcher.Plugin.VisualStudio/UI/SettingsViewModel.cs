@@ -35,6 +35,16 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }
         }
 
+        public bool DisplayGitBranch
+        {
+            get => settings.DisplayGitBranch;
+            set
+            {
+                settings.DisplayGitBranch = value;
+                OnPropertyChanged();
+            }
+        }
+
         public string VswherePath
         {
             get => settings.VswherePath;
