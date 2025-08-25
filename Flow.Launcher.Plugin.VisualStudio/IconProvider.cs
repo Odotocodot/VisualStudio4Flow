@@ -9,20 +9,19 @@ namespace Flow.Launcher.Plugin.VisualStudio
 {
     public class IconProvider
     {
+        private const string ImageFolderName = "Images";
+        private const string VSIconsFolderName = "VSIcons";
+        
         public const string DefaultIcon = ImageFolderName + "\\icon.png";
         public const string Remove = ImageFolderName + "\\delete.png";
         public const string Folder = ImageFolderName + "\\folder.png";
-
-        private const string ImageFolderName = "Images";
-        private const string VSIconsFolderName = "VSIcons";
 
         private readonly ConcurrentDictionary<string, string> vsIcons;
         private readonly string vsIconsDirectoryPath;
         private readonly PluginInitContext context;
 
-        public string Windows { get; init; }
-        public string Notification { get; init; }
-
+        public string Windows { get; }
+        public string Notification { get; }
 
         public IconProvider(PluginInitContext context)
         {
@@ -34,11 +33,8 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             vsIconsDirectoryPath = Path.Combine(context.CurrentPluginMetadata.PluginDirectory, ImageFolderName, VSIconsFolderName);
             Directory.CreateDirectory(vsIconsDirectoryPath);
-
-            foreach (var iconPath in Directory.EnumerateFiles(vsIconsDirectoryPath))
-            {
-                vsIcons.TryAdd(Path.GetFileNameWithoutExtension(iconPath), iconPath);
-            }
+            
+            ReloadIcons();
         }
 
         public void ReloadIcons()
@@ -53,22 +49,22 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         public string GetIconPath(VisualStudioInstance vs)
         {
-            if (!vsIcons.TryGetValue(vs.InstanceId, out string iconPath))
+            if (vsIcons.TryGetValue(vs.InstanceId, out string iconPath))
+                return iconPath;
+            
+            try
             {
-                try
-                {
-                    var icon = Icon.ExtractAssociatedIcon(vs.ExePath);
-                    var bitmap = icon.ToBitmap();
-                    iconPath = Path.Combine(vsIconsDirectoryPath, $"{vs.InstanceId}.png");
-                    using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
-                    bitmap.Save(fileStream, ImageFormat.Png);
-                    vsIcons.TryAdd(vs.InstanceId, iconPath);
-                }
-                catch (Exception e)
-                {
-                    context.API.LogException(typeof(IconProvider).FullName, $"Failed at creating an icon for \"{vs.DisplayName}\"", e);
-                    iconPath = DefaultIcon;
-                }
+                var icon = Icon.ExtractAssociatedIcon(vs.ExePath);
+                var bitmap = icon.ToBitmap();
+                iconPath = Path.Combine(vsIconsDirectoryPath, $"{vs.InstanceId}.png");
+                using var fileStream = new FileStream(iconPath, FileMode.CreateNew);
+                bitmap.Save(fileStream, ImageFormat.Png);
+                vsIcons.TryAdd(vs.InstanceId, iconPath);
+            }
+            catch (Exception e)
+            {
+                context.API.LogException(typeof(IconProvider).FullName, $"Failed at creating an icon for \"{vs.DisplayName}\"", e);
+                iconPath = DefaultIcon;
             }
             return iconPath;
         }

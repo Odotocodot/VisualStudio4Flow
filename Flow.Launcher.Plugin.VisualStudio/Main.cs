@@ -116,65 +116,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
             return matchResult.Success;
         }
 
-        public List<Result> LoadContextMenus(Result selectedResult)
-        {
-            if (selectedResult.ContextData is not ContextData contextData)
-                return null;
-            
-            List<Result> results = new()
-            {
-                new Result
-                {
-                    Title = $"Remove \"{contextData.Title}\" from recent items list.",
-                    SubTitle = selectedResult.SubTitle,
-                    IcoPath = IconProvider.Remove,
-                    Score = 1,
-                    AddSelectedCount = false,
-                    AsyncAction = async _ =>
-                    {
-                        await plugin.RemoveEntry(contextData.EntryResult);
-                        await Task.Delay(100);
-
-                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
-                        return true;
-                    }
-                }
-            };
-                
-            if (!contextData.ValidPath)
-            {
-                return results;
-            }
-                
-            results.InsertRange(0, plugin.VSInstances.Select(vs => new Result
-            {
-                Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
-                SubTitle = vs.ExePath,
-                IcoPath = iconProvider.GetIconPath(vs),
-                Score = 2,
-                AddSelectedCount = false,
-                Action = _ =>
-                {
-                    context.API.ShellRun($"\"{contextData.EntryResult.Path}\"", $"\"{vs.ExePath}\"");
-                    return true;
-                }
-            }));
-            results.Add(new Result
-            {
-                Title = "Open in File Explorer",
-                SubTitle = contextData.EntryResult.Path,
-                IcoPath = IconProvider.Folder,
-                Score = 0,
-                AddSelectedCount = false,
-                Action = _ =>
-                {
-                    context.API.OpenDirectory(Path.GetDirectoryName(contextData.EntryResult.Path), contextData.EntryResult.Path);
-                    return true;
-                }
-            });
-            return results;
-        }
-
         private static List<Result> SingleResult(string title, Action action = null)
         {
             return new List<Result>
@@ -261,6 +202,65 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     return true;
                 }
             };
+        }
+        
+        public List<Result> LoadContextMenus(Result selectedResult)
+        {
+            if (selectedResult.ContextData is not ContextData contextData)
+                return null;
+            
+            List<Result> results = new()
+            {
+                new Result
+                {
+                    Title = $"Remove \"{contextData.Title}\" from recent items list.",
+                    SubTitle = selectedResult.SubTitle,
+                    IcoPath = IconProvider.Remove,
+                    Score = 1,
+                    AddSelectedCount = false,
+                    AsyncAction = async _ =>
+                    {
+                        await plugin.RemoveEntry(contextData.EntryResult);
+                        await Task.Delay(100);
+
+                        context.API.ChangeQuery(context.CurrentPluginMetadata.ActionKeyword);
+                        return true;
+                    }
+                }
+            };
+                
+            if (!contextData.ValidPath)
+            {
+                return results;
+            }
+                
+            results.InsertRange(0, plugin.VSInstances.Select(vs => new Result
+            {
+                Title = $"Open in \"{vs.DisplayName}\" [Version: {vs.DisplayVersion}]",
+                SubTitle = vs.ExePath,
+                IcoPath = iconProvider.GetIconPath(vs),
+                Score = 2,
+                AddSelectedCount = false,
+                Action = _ =>
+                {
+                    context.API.ShellRun($"\"{contextData.EntryResult.Path}\"", $"\"{vs.ExePath}\"");
+                    return true;
+                }
+            }));
+            results.Add(new Result
+            {
+                Title = "Open in File Explorer",
+                SubTitle = contextData.EntryResult.Path,
+                IcoPath = IconProvider.Folder,
+                Score = 0,
+                AddSelectedCount = false,
+                Action = _ =>
+                {
+                    context.API.OpenDirectory(Path.GetDirectoryName(contextData.EntryResult.Path), contextData.EntryResult.Path);
+                    return true;
+                }
+            });
+            return results;
         }
         
         public System.Windows.Controls.Control CreateSettingPanel()

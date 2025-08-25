@@ -47,6 +47,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
         public string DefaultVswherePath => $"Default Path: \"{Settings.DefaultVswherePath}\"";
         public string LastBackup => $"[Last Backup: {settings.LastBackup.ToLocalTime()}]";
+        
         public bool AutoUpdateBackup
         {
             get => settings.AutoUpdateBackup;
@@ -81,18 +82,18 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
             SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId, VSInstances[0]);
         }
+        
         public async Task RefreshInstances()
         {
             await reloadable.ReloadDataAsync();
             SetupVSInstances(settings, plugin);
             OnPropertyChanged(nameof(VSInstances));
         }
+        
         public async Task ClearInvalidRecentItems() => await plugin.RemoveInvalidEntries();
         public async Task ClearAllRecentItems() => await plugin.RemoveAllEntries();
         public async Task RevertToBackup() => await plugin.RevertToBackup();
         public async Task BackupNow() => await Task.Run(plugin.UpdateBackup);
         public void UpdateLastBackupTime() => OnPropertyChanged(nameof(LastBackup));
-
-
     }
 }

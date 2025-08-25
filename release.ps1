@@ -22,7 +22,7 @@ while($confirmation -ne "y")
 
 $FullName = $Name + "-" + $Version
 
-dotnet publish -c Release -r win-x64 --no-self-contained -o .\Flow.Launcher.Plugin.VisualStudio\bin\Release\$FullName
+dotnet publish -c Release -r win-x64 --no-self-contained --property:PublishDir=.\bin\Release\$FullName
 #Compress-Archive -LiteralPath .\bin\Release\$FullName -DestinationPath .\bin\"$FullName.zip" -Force
 
 Do {
