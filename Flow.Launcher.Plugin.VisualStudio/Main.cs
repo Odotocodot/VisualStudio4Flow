@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using Flow.Launcher.Plugin.SharedModels;
 using Flow.Launcher.Plugin.VisualStudio.Models;
 
 namespace Flow.Launcher.Plugin.VisualStudio
@@ -110,10 +111,12 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
         private bool FuzzySearch(QueryData data, string search)
         {
-            var matchResult = context.API.FuzzySearch(search, Path.GetFileName(data.EntryResult.Path));
-            data.Score = matchResult.Score;
-            data.HighlightData = matchResult.MatchData;
-            return matchResult.Success;
+            MatchResult titleMatch = context.API.FuzzySearch(search, Path.GetFileName(data.EntryResult.Path));
+            MatchResult pathMatch = context.API.FuzzySearch(search, data.EntryResult.Path);
+            
+            data.Score = (int)(titleMatch.Score * 1.6 + pathMatch.Score);
+            data.HighlightData = titleMatch.MatchData;
+            return data.Score > 0;
         }
 
         private static List<Result> SingleResult(string title, Action action = null)
@@ -135,27 +138,14 @@ namespace Flow.Launcher.Plugin.VisualStudio
         
         private Result EntryResultToResult(EntryResult entryResult, bool addSelectedScore, int score, List<int> highlightData)
         {
-            string title;//NOTE: Move to EntryResult?
-            bool validPath = true;
-            if (Directory.Exists(entryResult.Path))
-            {
-                title = Path.GetFileName(entryResult.Path);
-            }
-            else if (File.Exists(entryResult.Path))
-            {
-                title = Path.GetFileNameWithoutExtension(entryResult.Path);
-            }
-            else //Invalid path
-            {
-                title = Path.GetFileName(entryResult.Path);
-                validPath = false;
-            }
+            string title = Path.GetFileName(entryResult.Path);
+            bool validPath = Path.Exists(entryResult.Path);
 
             string titleToolTip = title;
             if (entryResult.HasGit)
             {
                 title += $"  |  {entryResult.GitBranch}"; //Could use ⇈ or ↱ or↑
-                titleToolTip += $"\n\nBranch: {entryResult.GitBranch}";
+                titleToolTip += $"\n\nBranch:\t{entryResult.GitBranch}";
             }
 
             return new Result

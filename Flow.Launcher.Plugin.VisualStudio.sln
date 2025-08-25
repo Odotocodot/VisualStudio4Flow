@@ -8,7 +8,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{EE3B0F4E-2D98-4477-B521-3A69E6951410}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
-		data.json = data.json
 		LICENSE.txt = LICENSE.txt
 		Readme.md = Readme.md
 		release.ps1 = release.ps1
