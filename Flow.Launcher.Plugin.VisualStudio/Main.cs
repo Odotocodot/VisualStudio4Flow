@@ -112,11 +112,29 @@ namespace Flow.Launcher.Plugin.VisualStudio
         private bool FuzzySearch(QueryData data, string search)
         {
             MatchResult titleMatch = context.API.FuzzySearch(search, Path.GetFileName(data.EntryResult.Path));
-            MatchResult pathMatch = context.API.FuzzySearch(search, data.EntryResult.Path);
-            
-            data.Score = (int)(titleMatch.Score * 1.6 + pathMatch.Score);
             data.HighlightData = titleMatch.MatchData;
+
+            if (!settings.SearchGitBranch && !settings.SearchPath)
+            {
+                data.Score = titleMatch.Score;
+                return titleMatch.IsSearchPrecisionScoreMet();
+            }
+
+            int pathScore = 0;
+            if (settings.SearchPath)
+            {
+                pathScore = context.API.FuzzySearch(search, data.EntryResult.Path).Score;
+            }
+                
+            int branchScore = 0;
+            if (data.EntryResult.HasGit && settings.SearchGitBranch)
+            {
+                branchScore = context.API.FuzzySearch(search, data.EntryResult.GitBranch).Score;
+            }
+
+            data.Score = (int)(titleMatch.Score * 1.6 + pathScore + branchScore);
             return data.Score > 0;
+
         }
 
         private static List<Result> SingleResult(string title, Action action = null)
@@ -144,7 +162,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             string titleToolTip = title;
             if (entryResult.HasGit)
             {
-                title += $"  |  {entryResult.GitBranch}"; //Could use ⇈ or ↱ or↑
+                title += $"  (↱{entryResult.GitBranch})"; //Could use ⇈ or ↱ or ↑
                 titleToolTip += $"\n\nBranch:\t{entryResult.GitBranch}";
             }
 

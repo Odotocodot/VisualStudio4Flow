@@ -41,10 +41,34 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             set
             {
                 settings.DisplayGitBranch = value;
+                if (!value)
+                {
+                    SearchGitBranch = false;
+                }
                 OnPropertyChanged();
             }
         }
 
+        public bool SearchGitBranch
+        {
+            get => settings.SearchGitBranch;
+            set
+            {
+                settings.SearchGitBranch = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool SearchPath
+        {
+            get => settings.SearchPath;
+            set
+            {
+                settings.SearchPath = value;
+                OnPropertyChanged();
+            }
+        }
+        
         public string VswherePath
         {
             get => settings.VswherePath;
@@ -55,7 +79,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
             }
         }
 
-        public string DefaultVswherePath => $"Default Path: \"{Settings.DefaultVswherePath}\"";
+        public string DefaultVswherePath { get; } = $"Default Path: \"{Settings.DefaultVswherePath}\"";
         public string LastBackup => $"[Last Backup: {settings.LastBackup.ToLocalTime()}]";
         
         public bool AutoUpdateBackup
