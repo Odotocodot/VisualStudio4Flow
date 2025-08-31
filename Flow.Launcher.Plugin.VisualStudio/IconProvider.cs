@@ -50,8 +50,10 @@ namespace Flow.Launcher.Plugin.VisualStudio
         public string GetIconPath(VisualStudioInstance vs)
         {
             if (vsIcons.TryGetValue(vs.InstanceId, out string iconPath))
+            {
                 return iconPath;
-            
+            }
+
             try
             {
                 var icon = Icon.ExtractAssociatedIcon(vs.ExePath);

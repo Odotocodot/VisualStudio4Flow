@@ -136,7 +136,7 @@
                         VerticalAlignment="Center"
                         IsChecked="{Binding DisplayGitBranch}" />
                 </StackPanel>
-                <TextBlock Style="{StaticResource Glyph}" Text="&#xe774;" />
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xf003;" />
                 <!--  Could use EAC2 F259 ¯\_('v')_/¯  -->
             </ItemsControl>
         </Border>
@@ -151,11 +151,17 @@
                     HorizontalAlignment="Right"
                     Orientation="Horizontal">
                     <CheckBox
-                        Margin="0,4,26,4"
+                        Width="150"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Margin="0,4,18,4"
                         Content="Include path"
                         IsChecked="{Binding SearchPath}"
                         ToolTip="Include the path of the entry when searching" />
                     <CheckBox
+                        Width="150"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Margin="0,4,18,4"
                         Content="Include Git branch"
                         IsChecked="{Binding SearchGitBranch}"

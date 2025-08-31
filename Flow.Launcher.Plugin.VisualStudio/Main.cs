@@ -73,8 +73,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 return SingleResult("No recent items found");
             }
-
-
+            
             Func<EntryResult, bool> filter;
             string search;
             switch (query.Search)
@@ -101,7 +100,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
                                           .Select((e,i) => EntryResultToResult(e, false, i, null))
                                           .ToList();
             }
-            
             
             return plugin.EntryResults.Select(x => new QueryData(x))
                                       .Where(q => filter(q.EntryResult) && FuzzySearch(q, search))
@@ -134,7 +132,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
 
             data.Score = (int)(titleMatch.Score * 1.6 + pathScore + branchScore);
             return data.Score > 0;
-
         }
 
         private static List<Result> SingleResult(string title, Action action = null)
@@ -173,7 +170,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                 TitleToolTip = titleToolTip,
                 SubTitle = entryResult.IsFavorite ? $"★  {entryResult.Path}" : entryResult.Path,
                 SubTitleToolTip = $"{entryResult.Path}\n\nLast Accessed:\t{entryResult.LastAccessed:F}",
-                ContextData = new ContextData(entryResult, title, validPath),
+                ContextData = new ContextData(entryResult, validPath),
                 Score = score,
                 AddSelectedCount = addSelectedScore,
                 IcoPath = IconProvider.DefaultIcon, //TODO: add icons if favorite and/or is (git or invalid)
@@ -221,7 +218,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
             {
                 new Result
                 {
-                    Title = $"Remove \"{contextData.Title}\" from recent items list.",
+                    Title = $"Remove \"{Path.GetFileName(contextData.EntryResult.Path)}\" from recent items",
                     SubTitle = selectedResult.SubTitle,
                     IcoPath = IconProvider.Remove,
                     Score = 1,
@@ -282,7 +279,6 @@ namespace Flow.Launcher.Plugin.VisualStudio
             public List<int> HighlightData { get; set; }
         }
 
-        private record ContextData(EntryResult EntryResult, string Title, bool ValidPath);
-
+        private record ContextData(EntryResult EntryResult, bool ValidPath);
     }
 }

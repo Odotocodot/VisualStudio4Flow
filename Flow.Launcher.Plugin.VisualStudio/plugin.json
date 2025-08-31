@@ -4,7 +4,7 @@
     "Name": "Visual Studio Launcher",
     "Description": "Open your recent solutions, projects and files in Visual Studio",
     "Author": "Odotocodot",
-    "Version": "1.1.0-beta",
+    "Version": "1.1.0",
     "Language": "csharp",
     "Website": "https://github.com/Odotocodot/VisualStudio4Flow",
     "IcoPath": "Images\\icon.png",

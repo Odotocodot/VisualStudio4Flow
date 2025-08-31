@@ -94,7 +94,7 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
 
         private void SetupVSInstances(Settings settings, VisualStudioPlugin plugin)
         {
-            VSInstances = new List<VisualStudioViewModel>()
+            VSInstances = new List<VisualStudioViewModel>
             {
                 new VisualStudioViewModel
                 {
@@ -104,14 +104,11 @@ namespace Flow.Launcher.Plugin.VisualStudio.UI
                 }
             };
 
-            VSInstances.AddRange(plugin.VSInstances.Select(vs =>
+            VSInstances.AddRange(plugin.VSInstances.Select(vs => new VisualStudioViewModel
             {
-                return new VisualStudioViewModel
-                {
-                    IconPath = iconProvider.GetIconPath(vs),
-                    Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
-                    InstanceId = vs.InstanceId,
-                };
+                IconPath = iconProvider.GetIconPath(vs),
+                Name = $"{vs.DisplayName} [Version: {vs.DisplayVersion}]",
+                InstanceId = vs.InstanceId,
             }));
 
             SelectedVSInstance = VSInstances.FirstOrDefault(i => i.InstanceId == settings.DefaultVSId, VSInstances[0]);
