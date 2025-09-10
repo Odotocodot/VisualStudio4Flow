@@ -23,7 +23,7 @@ jobs:
         id: version
         uses: notiz-dev/github-action-json-property@release
         with:
-          path: 'plugin.json'
+          path: 'Flow.Launcher.Plugin.VisualStudio/plugin.json'
           prop_path: 'Version'
 
       - run: echo ${{steps.version.outputs.prop}}
@@ -36,7 +36,8 @@ jobs:
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
-          files: "Flow.Launcher.Plugin.VisualStudioLauncher.zip"
+          files: "Flow.Launcher.Plugin.VisualStudio/Flow.Launcher.Plugin.VisualStudioLauncher.zip"
           tag_name: "v${{steps.version.outputs.prop}}"
+          
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
