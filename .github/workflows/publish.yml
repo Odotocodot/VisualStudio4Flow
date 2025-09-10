@@ -30,13 +30,14 @@ jobs:
 
       - name: Build
         run: |
+          cd Flow.Launcher.Plugin.VisualStudio
           dotnet publish -c Release -r win-x64 --no-self-contained Flow.Launcher.Plugin.VisualStudio.csproj
-          7z a -tzip "Flow.Launcher.Plugin.VisualStudioLauncher.zip" "./bin/Release/win-x64/publish/*"
+          7z a -tzip "Flow.Launcher.Plugin.VisualStudio.zip" "./bin/Release/win-x64/publish/*"
 
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
-          files: "Flow.Launcher.Plugin.VisualStudio/Flow.Launcher.Plugin.VisualStudioLauncher.zip"
+          files: "Flow.Launcher.Plugin.VisualStudio/Flow.Launcher.Plugin.VisualStudio.zip"
           tag_name: "v${{steps.version.outputs.prop}}"
           
         env:
