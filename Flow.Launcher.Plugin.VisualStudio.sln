@@ -3,7 +3,33 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Flow.Launcher.Plugin.VisualStudio", "Flow.Launcher.Plugin.VisualStudio.csproj", "{743273E6-3AFE-4C48-848C-A242C5B80BB0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Flow.Launcher.Plugin.VisualStudio", "Flow.Launcher.Plugin.VisualStudio\Flow.Launcher.Plugin.VisualStudio.csproj", "{743273E6-3AFE-4C48-848C-A242C5B80BB0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{EE3B0F4E-2D98-4477-B521-3A69E6951410}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		LICENSE.txt = LICENSE.txt
+		Readme.md = Readme.md
+		release.ps1 = release.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Images", "Images", "{897F2490-D516-4CEB-947B-5690A6030978}"
+	ProjectSection(SolutionItems) = preProject
+		doc\context_menu.png = doc\context_menu.png
+		doc\default_search.png = doc\default_search.png
+		doc\flow.png = doc\flow.png
+		doc\settings.png = doc\settings.png
+		doc\vs_2022.png = doc\vs_2022.png
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Images", "Images", "{A7BBB3BD-46B7-467B-95C7-A61DAD9E8766}"
+	ProjectSection(SolutionItems) = preProject
+		doc\context_menu.png = doc\context_menu.png
+		doc\default_search.png = doc\default_search.png
+		doc\flow.png = doc\flow.png
+		doc\settings.png = doc\settings.png
+		doc\vs_2022.png = doc\vs_2022.png
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,5 +47,8 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8D97878F-840C-4CA3-B7CF-496FFA7D5668}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A7BBB3BD-46B7-467B-95C7-A61DAD9E8766} = {EE3B0F4E-2D98-4477-B521-3A69E6951410}
 	EndGlobalSection
 EndGlobal

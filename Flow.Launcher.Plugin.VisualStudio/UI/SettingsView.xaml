@@ -1,0 +1,193 @@
+﻿<UserControl
+    x:Class="Flow.Launcher.Plugin.VisualStudio.UI.SettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:Flow.Launcher.Plugin.VisualStudio.UI"
+    d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+    d:DesignHeight="450"
+    d:DesignWidth="900"
+    mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <StackPanel Margin="25,0,25,25">
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Default open with" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="Set the default Visual Studio instance to open a search result with." />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <ComboBox
+                        Name="ComboBox"
+                        MinWidth="350"
+                        Margin="10,4,12,4"
+                        VerticalAlignment="Center"
+                        d:SelectedIndex="0"
+                        ItemsSource="{Binding VSInstances}"
+                        SelectedItem="{Binding SelectedVSInstance}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:VisualStudioViewModel">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Image
+                                        Width="24"
+                                        Height="24"
+                                        VerticalAlignment="Center"
+                                        SnapsToDevicePixels="True"
+                                        Source="{Binding IconPath}" />
+                                    <TextBlock
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Text="{Binding Name}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button
+                        Height="{Binding ActualHeight, ElementName=ComboBox}"
+                        Margin="0,4,18,4"
+                        Click="Refresh_Click"
+                        ToolTip="Reload Visual Studio Instances">
+                        <TextBlock
+                            Margin="0"
+                            FontSize="16"
+                            Style="{StaticResource Glyph}"
+                            Text="&#xe72c;" />
+                    </Button>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe7ac;" />
+            </ItemsControl>
+        </Border>
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Remove recent items from Visual Studio" />
+                    <!--<TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="" />-->
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button
+                        Click="ClearInvalid_Click"
+                        Content="Clear Invalid Items"
+                        Style="{StaticResource SettingButton}" />
+                    <Button
+                        Name="ClearAllBtn"
+                        Click="ClearAll_Click"
+                        Content="Clear All Items"
+                        Style="{StaticResource SettingButton}" />
+                    <Button
+                        Width="Auto"
+                        Height="{Binding ActualHeight, ElementName=ClearAllBtn}"
+                        Margin="0,4,18,4"
+                        ToolTip="Revert to backup">
+                        <Button.Style>
+                            <Style BasedOn="{StaticResource SettingButton}" TargetType="{x:Type Button}">
+                                <Style.Triggers>
+                                    <EventTrigger RoutedEvent="Click">
+                                        <EventTrigger.Actions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <BooleanAnimationUsingKeyFrames Storyboard.TargetProperty="ContextMenu.IsOpen">
+                                                        <DiscreteBooleanKeyFrame KeyTime="0:0:0" Value="True" />
+                                                    </BooleanAnimationUsingKeyFrames>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger.Actions>
+                                    </EventTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.ContextMenu>
+                            <ContextMenu Name="CtxMenu" Opened="UpdateBackupTime">
+                                <MenuItem Header="{Binding LastBackup, Mode=OneWay}" IsEnabled="False" />
+                                <MenuItem Click="RevertToBackup" Header="Revert to Backup" />
+                                <MenuItem Click="BackupNow" Header="Backup Now" />
+                                <MenuItem
+                                    Header="Automatically Update Backup"
+                                    IsCheckable="True"
+                                    IsChecked="{Binding AutoUpdateBackup}" />
+                                <MenuItem Header="The list of recent items backup is updated&#10;once a day, provided Flow Launcher has&#10;been opened at least once." IsEnabled="False" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <TextBlock
+                            Margin="0"
+                            FontSize="16"
+                            Style="{StaticResource Glyph}"
+                            Text="&#xe81c;" />
+                    </Button>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe74d;" />
+            </ItemsControl>
+        </Border>
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Display Git branch" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="Requires Git to be on the PATH environment variable." />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <CheckBox
+                        Margin="0,4,18,4"
+                        VerticalAlignment="Center"
+                        IsChecked="{Binding DisplayGitBranch}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xf003;" />
+                <!--  Could use EAC2 F259 ¯\_('v')_/¯  -->
+            </ItemsControl>
+        </Border>
+        <Border CornerRadius="0,0,0,0" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock Style="{DynamicResource SettingTitleLabel}" Text="Search filtering options" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="Toggle these options to include them when searching." />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="2"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+                    <CheckBox
+                        Width="150"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Margin="0,4,18,4"
+                        Content="Include path"
+                        IsChecked="{Binding SearchPath}"
+                        ToolTip="Include the path of the entry when searching" />
+                    <CheckBox
+                        Width="150"
+                        VerticalAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Margin="0,4,18,4"
+                        Content="Include Git branch"
+                        IsChecked="{Binding SearchGitBranch}"
+                        IsEnabled="{Binding DisplayGitBranch}"
+                        ToolTip="Include the Git branch when searching" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe721;" />
+            </ItemsControl>
+        </Border>
+        <Border CornerRadius="0,0,9,9" Style="{DynamicResource SettingGroupBox}">
+            <ItemsControl Style="{StaticResource SettingGrid}">
+                <StackPanel Style="{StaticResource TextPanel}">
+                    <TextBlock
+                        Style="{DynamicResource SettingTitleLabel}"
+                        Text="vswhere.exe path"
+                        ToolTip="{Binding DefaultVswherePath}" />
+                    <TextBlock Style="{DynamicResource SettingSubTitleLabel}" Text="vswhere.exe is used to find your Visual Studio instances." />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBox
+                        Margin="0,4,18,4"
+                        VerticalAlignment="Center"
+                        Text="{Binding VswherePath}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Glyph}" Text="&#xe835;" />
+            </ItemsControl>
+        </Border>
+    </StackPanel>
+</UserControl>
