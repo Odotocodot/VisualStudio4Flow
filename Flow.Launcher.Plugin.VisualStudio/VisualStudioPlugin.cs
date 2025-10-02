@@ -182,6 +182,7 @@ namespace Flow.Launcher.Plugin.VisualStudio
                     CreateNoWindow = true,
                     WorkingDirectory = path,
                     RedirectStandardOutput = true,
+                    StandardOutputEncoding = Encoding.UTF8
                     
                 });
                 string branch = await process.StandardOutput.ReadToEndAsync(token);
