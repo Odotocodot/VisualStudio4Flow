@@ -38,7 +38,7 @@
                                 Width="Auto"
                                 MinWidth="20"
                                 MaxWidth="60" />
-                            <ColumnDefinition Width="8*" />
+                            <ColumnDefinition Width="8*" MinWidth="120" />
                             <ColumnDefinition Width="Auto" MinWidth="30" />
                         </Grid.ColumnDefinitions>
                     </Grid>
